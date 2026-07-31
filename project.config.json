@@ -1,0 +1,12 @@
+{
+  "appid": "touristappid",
+  "compileType": "miniprogram",
+  "libVersion": "trial",
+  "projectname": "meal-split-mini-program",
+  "setting": {
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true
+  }
+}

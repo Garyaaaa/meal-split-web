@@ -1,0 +1,9 @@
+{
+  "desc": "吃饭分账小程序页面索引配置",
+  "rules": [
+    {
+      "action": "disallow",
+      "page": "*"
+    }
+  ]
+}
