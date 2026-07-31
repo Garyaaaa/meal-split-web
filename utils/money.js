@@ -14,7 +14,11 @@ function formatCents(cents) {
     throw new TypeError('cents must be an integer');
   }
 
-  return (cents / 100).toFixed(2);
+  const sign = cents < 0 ? '-' : '';
+  const absoluteCents = Math.abs(cents);
+  const yuan = Math.floor(absoluteCents / 100);
+  const decimal = String(absoluteCents % 100).padStart(2, '0');
+  return `${sign}${yuan}.${decimal}`;
 }
 
 module.exports = { parseYuanToCents, formatCents };

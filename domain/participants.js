@@ -33,10 +33,20 @@ function createNamedParticipants(names) {
 function reconcileParticipants(bill, names) {
   const namedParticipants = createNamedParticipants(names);
   const oldParticipants = bill.participants;
-  const participants = namedParticipants.map((participant, index) => ({
-    ...participant,
-    id: oldParticipants[index] ? oldParticipants[index].id : participant.id,
-  }));
+  const usedIds = new Set(oldParticipants.map((participant) => participant.id));
+  let nextIdNumber = 1;
+  const participants = namedParticipants.map((participant, index) => {
+    if (oldParticipants[index]) {
+      return { ...participant, id: oldParticipants[index].id };
+    }
+
+    while (usedIds.has(`p${nextIdNumber}`)) {
+      nextIdNumber += 1;
+    }
+    const id = `p${nextIdNumber}`;
+    usedIds.add(id);
+    return { ...participant, id };
+  });
   const remainingIds = new Set(participants.map((participant) => participant.id));
   const removedParticipants = oldParticipants.filter(
     (participant) => !remainingIds.has(participant.id),
@@ -61,7 +71,13 @@ function reconcileParticipants(bill, names) {
     return { ...expense, participantIds };
   });
 
-  return { ...bill, participants, expenses };
+  const collectorId = removedParticipants.some(
+    (participant) => participant.id === bill.collectorId,
+  )
+    ? null
+    : bill.collectorId;
+
+  return { ...bill, participants, expenses, collectorId };
 }
 
 module.exports = {
