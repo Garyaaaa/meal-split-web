@@ -20,11 +20,13 @@
       class="segment {{mode === 'letters' ? 'segment-active' : ''}}"
       data-mode="letters"
       bindtap="chooseMode"
+      aria-pressed="{{mode === 'letters'}}"
     >快速字母</button>
     <button
       class="segment {{mode === 'names' ? 'segment-active' : ''}}"
       data-mode="names"
       bindtap="chooseMode"
+      aria-pressed="{{mode === 'names'}}"
     >输入姓名</button>
   </view>
 

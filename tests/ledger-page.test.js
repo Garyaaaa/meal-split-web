@@ -485,6 +485,16 @@ test('templates bind the editor and isolate delete taps; styles avoid unsupporte
     /\.choice-chip,\s*\.bearer-chip\s*\{[^}]*min-width:\s*88rpx;[^}]*min-height:\s*88rpx/,
   );
   assert.match(editorStyles, /\.split-segment\s*\{[^}]*min-height:\s*88rpx/);
+  assert.match(editorWxml, /<textarea\b[^>]*class="note-input"[^>]*bindinput="onNoteInput"[^>]*>/);
+  const noteRules = editorStyles
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('}')
+    .map((block) => block.match(/^\s*\.note-input\s*\{([\s\S]*)$/))
+    .filter(Boolean);
+  assert.ok(noteRules.length > 0);
+  const noteMinHeight = noteRules.at(-1)[1].match(/(?:^|;)\s*min-height:\s*(\d+)rpx\s*(?:;|$)/);
+  assert.ok(noteMinHeight);
+  assert.ok(Number(noteMinHeight[1]) >= 88);
   assert.match(
     ledgerStyles,
     /\.add-expense-button\s*\{[^}]*min-width:\s*(?:88|9\d|1\d\d)rpx;[^}]*min-height:\s*88rpx/,

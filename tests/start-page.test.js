@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const STORAGE_KEY = 'meal_split_draft';
 const storage = new Map();
@@ -10,6 +12,34 @@ let storageWriteCount = 0;
 
 function clone(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+}
+
+function classDeclarations(wxss, className) {
+  const blocks = wxss.replace(/\/\*[\s\S]*?\*\//g, '').split('}');
+  const declarations = new Map();
+
+  for (const block of blocks) {
+    const match = block.match(new RegExp(`^\\s*\\.${className}\\s*\\{([\\s\\S]*)$`));
+    if (!match) {
+      continue;
+    }
+    for (const declaration of match[1].split(';')) {
+      const separator = declaration.indexOf(':');
+      if (separator !== -1) {
+        declarations.set(
+          declaration.slice(0, separator).trim(),
+          declaration.slice(separator + 1).trim(),
+        );
+      }
+    }
+  }
+
+  return declarations;
+}
+
+function rpxValue(declarations, property) {
+  const match = String(declarations.get(property) || '').match(/^(\d+)rpx$/);
+  return match ? Number(match[1]) : null;
 }
 
 global.wx = {
@@ -246,4 +276,55 @@ test('never recovers an uninitialized edit from a later storage read', () => {
   assert.equal(page.data.editing, true);
   assert.equal(page.data.editInitialized, false);
   assert.equal(page.data.error, '未找到可编辑的账单');
+});
+
+test('participant setup controls provide at least 88rpx touch targets', () => {
+  const wxml = fs.readFileSync(
+    path.resolve(__dirname, '../pages/start/start.wxml'),
+    'utf8',
+  );
+  const wxss = fs.readFileSync(
+    path.resolve(__dirname, '../pages/start/start.wxss'),
+    'utf8',
+  );
+
+  const controls = [
+    ['draft-link', 'continueDraft'],
+    ['segment', 'chooseMode'],
+    ['stepper-button', 'changeCount'],
+    ['delete-button', 'removeName'],
+  ];
+  for (const [className, handler] of controls) {
+    assert.match(
+      wxml,
+      new RegExp(`<button\\b[^>]*class="[^"]*${className}[^"]*"[^>]*bindtap="${handler}"[^>]*>`),
+    );
+    const declarations = classDeclarations(wxss, className);
+    assert.ok(declarations.size > 0, `missing active rule for .${className}`);
+    assert.ok(
+      rpxValue(declarations, 'min-height') >= 88,
+      `.${className} touch target is shorter than 88rpx`,
+    );
+  }
+
+  const stepper = classDeclarations(wxss, 'stepper-button');
+  assert.ok(rpxValue(stepper, 'width') >= 88);
+  assert.ok(rpxValue(stepper, 'height') >= 88);
+});
+
+test('participant naming modes expose their selected state', () => {
+  const wxml = fs.readFileSync(
+    path.resolve(__dirname, '../pages/start/start.wxml'),
+    'utf8',
+  );
+
+  const tags = [...wxml.matchAll(/<button\b[^>]*class="segment [^"]*"[^>]*>/g)]
+    .map((match) => match[0]);
+  assert.equal(tags.length, 2);
+  for (const mode of ['letters', 'names']) {
+    const tag = tags.find((candidate) => candidate.includes(`data-mode="${mode}"`));
+    assert.ok(tag, `missing ${mode} naming mode button`);
+    assert.match(tag, /bindtap="chooseMode"/);
+    assert.match(tag, new RegExp(`aria-pressed="{{mode === '${mode}'}}"`));
+  }
 });

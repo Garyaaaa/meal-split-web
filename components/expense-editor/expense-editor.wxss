@@ -199,7 +199,7 @@
 .note-input {
   box-sizing: border-box;
   width: 100%;
-  min-height: 78rpx;
+  min-height: 88rpx;
   padding: 0 0 34rpx;
   color: #17191c;
   font-size: 28rpx;
