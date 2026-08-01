@@ -118,3 +118,97 @@ test('blocks deleting a middle participant who paid an expense', () => {
   assert.deepEqual(storage.get(STORAGE_KEY).bill, original);
   assert.equal(calls.navigateBack.length, 0);
 });
+
+test('restores temporarily truncated IDs when letter count shrinks then regrows', () => {
+  resetHarness();
+  const original = createDraft({
+    participantMode: 'letters',
+    expenses: [{
+      id: 'e2',
+      amountCents: 900,
+      payerId: 'p1',
+      splitMode: 'selected',
+      participantIds: ['p1', 'p3'],
+      note: '',
+    }],
+  });
+  persist(original);
+  const page = createPage();
+  page.onLoad({ edit: '1' });
+
+  page.updateCount(2);
+  assert.equal(page.data.count, 2);
+  assert.equal(page.data.names.length, 2);
+  assert.deepEqual(page.data.letterChips, ['A', 'B']);
+  assert.deepEqual(page.data.participantIds, ['p1', 'p2', 'p3']);
+
+  page.updateCount(3);
+  assert.equal(page.data.count, 3);
+  assert.equal(page.data.names.length, 3);
+  assert.deepEqual(page.data.letterChips, ['A', 'B', 'C']);
+  assert.deepEqual(page.data.participantIds, ['p1', 'p2', 'p3']);
+
+  page.submit();
+
+  const saved = storage.get(STORAGE_KEY).bill;
+  assert.deepEqual(
+    saved.participants.map((participant) => participant.id),
+    ['p1', 'p2', 'p3'],
+  );
+  assert.deepEqual(saved.expenses[0].participantIds, ['p1', 'p3']);
+  assert.equal(page.data.error, '');
+  assert.equal(calls.navigateBack.length, 1);
+  assert.equal(calls.navigateTo.length, 0);
+});
+
+test('does not treat a temporarily truncated payer as removed after count regrowth', () => {
+  resetHarness();
+  const original = createDraft({
+    participantMode: 'letters',
+    expenses: [{
+      id: 'e3',
+      amountCents: 900,
+      payerId: 'p3',
+      splitMode: 'all',
+      participantIds: [],
+      note: '',
+    }],
+  });
+  persist(original);
+  const page = createPage();
+  page.onLoad({ edit: '1' });
+
+  page.updateCount(2);
+  page.updateCount(3);
+  page.submit();
+
+  const saved = storage.get(STORAGE_KEY).bill;
+  assert.deepEqual(
+    saved.participants.map((participant) => participant.id),
+    ['p1', 'p2', 'p3'],
+  );
+  assert.equal(saved.expenses[0].payerId, 'p3');
+  assert.equal(page.data.error, '');
+  assert.equal(calls.navigateBack.length, 1);
+  assert.equal(calls.navigateTo.length, 0);
+});
+
+test('keeps edit intent and blocks submission when the requested draft is unreadable', () => {
+  resetHarness();
+  const page = createPage();
+
+  page.onLoad({ edit: '1' });
+
+  assert.equal(page.data.editing, true);
+  assert.equal(page.data.hasDraft, false);
+  assert.equal(page.data.error, '未找到可编辑的账单');
+
+  page.onShow();
+  page.submit();
+
+  assert.equal(page.data.editing, true);
+  assert.equal(page.data.error, '未找到可编辑的账单');
+  assert.equal(storage.has(STORAGE_KEY), false);
+  assert.equal(calls.navigateBack.length, 0);
+  assert.equal(calls.navigateTo.length, 0);
+});

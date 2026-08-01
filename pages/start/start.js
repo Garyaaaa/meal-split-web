@@ -24,7 +24,7 @@ function resizeNames(names, count) {
 }
 
 function resizeParticipantIds(participantIds, count) {
-  const resized = participantIds.slice(0, count);
+  const resized = participantIds.slice();
   while (resized.length < count) {
     resized.push(null);
   }
@@ -86,9 +86,18 @@ Page({
 
   onLoad(options) {
     const draft = store.load();
-    const shouldEdit = options && options.edit === '1' && draft;
+    const wantsEdit = Boolean(options && options.edit === '1');
 
-    if (shouldEdit) {
+    if (wantsEdit && !draft) {
+      this.setData({
+        hasDraft: false,
+        editing: true,
+        error: '未找到可编辑的账单',
+      });
+      return;
+    }
+
+    if (wantsEdit) {
       const count = draft.participants.length;
       this.setData({
         mode: draft.participantMode,
