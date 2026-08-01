@@ -186,10 +186,10 @@ test('maps the confirmed five-person 398/60/10 example exactly', () => {
       amountText,
     })),
     [
-      { key: 'p2-to-p1', routeText: 'B 转给 A', amountText: '21.60' },
-      { key: 'p3-to-p1', routeText: 'C 转给 A', amountText: '101.60' },
-      { key: 'p4-to-p1', routeText: 'D 转给 A', amountText: '91.60' },
-      { key: 'p5-to-p1', routeText: 'E 转给 A', amountText: '91.60' },
+      { key: '2:p2|2:p1', routeText: 'B 转给 A', amountText: '21.60' },
+      { key: '2:p3|2:p1', routeText: 'C 转给 A', amountText: '101.60' },
+      { key: '2:p4|2:p1', routeText: 'D 转给 A', amountText: '91.60' },
+      { key: '2:p5|2:p1', routeText: 'E 转给 A', amountText: '91.60' },
     ],
   );
   assert.equal(page.data.actionRows[1].detail, '承担 C 加菜');
@@ -238,12 +238,36 @@ test('renders every multiple-creditor transfer with stable route keys', () => {
       amount: row.amountText,
     })),
     [
-      { key: 'p1-to-p2', from: 'A', to: 'B', amount: '10.00' },
-      { key: 'p3-to-p1', from: 'C', to: 'A', amount: '50.00' },
+      { key: '2:p1|2:p2', from: 'A', to: 'B', amount: '10.00' },
+      { key: '2:p3|2:p1', from: 'C', to: 'A', amount: '50.00' },
     ],
   );
   assert.equal(new Set(page.data.actionRows.map((row) => row.key)).size, 2);
   assert.equal(page.data.actionRows.some((row) => row.fromId === page.data.collector.id), true);
+});
+
+test('transfer row keys are injective for adversarial valid participant IDs', () => {
+  resetHarness();
+  persist(createDraft({
+    participants: [
+      { id: 'a', displayName: 'A' },
+      { id: 'b-to-a', displayName: 'B' },
+      { id: 'a-to-b', displayName: 'C' },
+    ],
+    expenses: [
+      expense('e1', 9000, 'a'),
+      expense('e2', 6000, 'b-to-a'),
+    ],
+  }));
+  const page = createPage();
+
+  page.onShow();
+
+  assert.deepEqual(
+    page.data.actionRows.map((row) => row.key),
+    ['1:a|6:b-to-a', '6:a-to-b|1:a'],
+  );
+  assert.equal(new Set(page.data.actionRows.map((row) => row.key)).size, 2);
 });
 
 test('action detail uses at most two relevant nonblank selected-expense notes', () => {
@@ -403,7 +427,7 @@ test('changeCollector accepts only another eligible positive-net member', () => 
   assert.equal(page.data.collector.id, 'p2');
   assert.deepEqual(
     page.data.actionRows.map((row) => row.key),
-    ['p2-to-p1', 'p3-to-p2'],
+    ['2:p2|2:p1', '2:p3|2:p2'],
   );
 });
 
@@ -464,6 +488,56 @@ test('copyResult handles callback and synchronous clipboard failures', () => {
   assert.equal(calls.showToast.filter((item) => item.title === '复制失败').length, 2);
 });
 
+test('stale clipboard success after onShow cannot unlock or toast over the current request', () => {
+  resetHarness();
+  persist(caseOneBill());
+  const page = createPage();
+  page.onShow();
+  page.copyResult();
+  const firstRequest = calls.setClipboardData[0];
+
+  page.onShow();
+  page.copyResult();
+  const secondRequest = calls.setClipboardData[1];
+  firstRequest.success();
+  page.copyResult();
+
+  assert.equal(calls.setClipboardData.length, 2);
+  assert.equal(calls.showToast.some((item) => item.title === '已复制到剪贴板'), false);
+
+  secondRequest.success();
+  page.copyResult();
+  assert.equal(calls.setClipboardData.length, 3);
+  assert.equal(
+    calls.showToast.filter((item) => item.title === '已复制到剪贴板').length,
+    1,
+  );
+});
+
+test('stale clipboard failure after onShow cannot unlock or overwrite current state', () => {
+  resetHarness();
+  persist(caseOneBill());
+  const page = createPage();
+  page.onShow();
+  page.copyResult();
+  const firstRequest = calls.setClipboardData[0];
+
+  page.onShow();
+  page.copyResult();
+  const secondRequest = calls.setClipboardData[1];
+  firstRequest.fail(new Error('stale failure'));
+  page.copyResult();
+
+  assert.equal(calls.setClipboardData.length, 2);
+  assert.equal(page.data.pageError, '');
+  assert.equal(calls.showToast.some((item) => item.title === '复制失败'), false);
+
+  secondRequest.fail(new Error('current failure'));
+  assert.match(page.data.pageError, /复制失败/);
+  page.copyResult();
+  assert.equal(calls.setClipboardData.length, 3);
+});
+
 test('finish cancellation does not clear or navigate and allows retry', () => {
   resetHarness();
   persist(caseOneBill());
@@ -482,6 +556,126 @@ test('finish cancellation does not clear or navigate and allows retry', () => {
 
   page.finish();
   assert.equal(calls.showModal.length, 2);
+});
+
+test('finish confirmation from an older onShow generation cannot clear a reloaded draft', () => {
+  resetHarness();
+  persist(caseOneBill());
+  const page = createPage();
+  page.onShow();
+  page.finish();
+  const oldModal = calls.showModal[0];
+
+  persist(caseOneBill({
+    collectorId: 'p1',
+    updatedAt: 501,
+    expenses: [expense('replacement', 2500, 'p1')],
+  }));
+  page.onShow();
+  const replacement = savedBill();
+  oldModal.success({ confirm: true, cancel: false });
+
+  assert.deepEqual(savedBill(), replacement);
+  assert.equal(calls.reLaunch.length, 0);
+  assert.equal(page.data.isReady, true);
+  assert.equal(page.data.totalText, '25.00');
+});
+
+test('stale finish failure cannot unlock or overwrite the current modal request', () => {
+  resetHarness();
+  persist(caseOneBill());
+  const page = createPage();
+  page.onShow();
+  page.finish();
+  const oldModal = calls.showModal[0];
+
+  page.onShow();
+  page.finish();
+  const currentModal = calls.showModal[1];
+  oldModal.fail(new Error('stale modal failure'));
+  page.finish();
+
+  assert.equal(calls.showModal.length, 2);
+  assert.equal(page.data.pageError, '');
+  assert.equal(calls.showToast.some((item) => item.title === '打开确认提示失败'), false);
+
+  currentModal.fail(new Error('current modal failure'));
+  assert.match(page.data.pageError, /打开确认提示失败/);
+  page.finish();
+  assert.equal(calls.showModal.length, 3);
+});
+
+test('finish rechecks storage and preserves an externally replaced draft', () => {
+  resetHarness();
+  persist(caseOneBill());
+  const page = createPage();
+  page.onShow();
+  page.finish();
+  const modal = calls.showModal[0];
+  const replacement = caseOneBill({
+    collectorId: 'p1',
+    updatedAt: 777,
+    expenses: [expense('external', 3300, 'p2')],
+  });
+  persist(replacement);
+
+  modal.success({ confirm: true, cancel: false });
+
+  assert.deepEqual(savedBill(), replacement);
+  assert.equal(calls.reLaunch.length, 0);
+  assert.match(page.data.pageError, /账单已更新，请重新确认/);
+});
+
+test('finish storage read failure preserves the draft and does not navigate', () => {
+  resetHarness();
+  persist(caseOneBill());
+  const page = createPage();
+  page.onShow();
+  page.finish();
+  failReads = true;
+
+  calls.showModal[0].success({ confirm: true, cancel: false });
+
+  assert.ok(savedBill());
+  assert.equal(calls.reLaunch.length, 0);
+  assert.match(page.data.pageError, /读取账单失败/);
+});
+
+test('finish treats a missing draft at confirmation time as updated', () => {
+  resetHarness();
+  persist(caseOneBill());
+  const page = createPage();
+  page.onShow();
+  page.finish();
+  storage.delete(STORAGE_KEY);
+
+  calls.showModal[0].success({ confirm: true, cancel: false });
+
+  assert.equal(calls.reLaunch.length, 0);
+  assert.match(page.data.pageError, /账单已更新，请重新确认/);
+});
+
+test('late finish relaunch failure cannot overwrite a newer page generation', () => {
+  resetHarness();
+  persist(caseOneBill());
+  const page = createPage();
+  page.onShow();
+  page.finish();
+  calls.showModal[0].success({ confirm: true, cancel: false });
+  const oldRelaunch = calls.reLaunch[0];
+
+  persist(caseOneBill({
+    collectorId: 'p1',
+    updatedAt: 808,
+    expenses: [expense('new-generation', 4400, 'p1')],
+  }));
+  page.onShow();
+  oldRelaunch.fail(new Error('stale relaunch failure'));
+
+  assert.equal(page.data.isReady, true);
+  assert.equal(page.data.totalText, '44.00');
+  assert.equal(page.data.pageError, '');
+  assert.equal(calls.showToast.some((item) => item.title === '返回开始页失败'), false);
 });
 
 test('finish confirm clears then relaunches once despite duplicate callbacks', () => {

@@ -71,6 +71,28 @@ function initialFor(displayName) {
   return Array.from(displayName.trim())[0] || '人';
 }
 
+function transferKey(fromId, toId) {
+  return `${fromId.length}:${fromId}|${toId.length}:${toId}`;
+}
+
+function canonicalize(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => canonicalize(item));
+  }
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  return Object.keys(value).sort().reduce((result, key) => {
+    result[key] = canonicalize(value[key]);
+    return result;
+  }, {});
+}
+
+function billFingerprint(bill) {
+  return JSON.stringify(canonicalize(bill));
+}
+
 function buildActionDetail(bill, member) {
   const notes = [];
   for (const expense of bill.expenses) {
@@ -115,7 +137,7 @@ function buildViewModel(bill, settlement) {
     const to = membersById.get(transfer.toId);
     const subject = transfer.fromId === settlement.collectorId ? to : from;
     return {
-      key: `${transfer.fromId}-to-${transfer.toId}`,
+      key: transferKey(transfer.fromId, transfer.toId),
       fromId: transfer.fromId,
       toId: transfer.toId,
       fromName: from.displayName,
@@ -150,9 +172,12 @@ Page({
   data: Object.assign({}, EMPTY_STATE),
 
   onShow() {
+    this._lifecycleGeneration = (this._lifecycleGeneration || 0) + 1;
     this._navigationPending = false;
     this._finishPending = false;
+    this._finishRequest = null;
     this._copyPending = false;
+    this._copyRequest = null;
     this._currentBill = null;
     this._currentSettlement = null;
     storageReadError = null;
@@ -273,20 +298,31 @@ Page({
       return;
     }
     this._copyPending = true;
-    let handled = false;
+    const request = {
+      generation: this._lifecycleGeneration,
+      handled: false,
+    };
+    this._copyRequest = request;
+    const isCurrentRequest = () => (
+      this._copyRequest === request
+      && this._lifecycleGeneration === request.generation
+      && !request.handled
+    );
     const handleFailure = (error) => {
-      if (handled) {
+      if (!isCurrentRequest()) {
         return;
       }
-      handled = true;
+      request.handled = true;
+      this._copyRequest = null;
       this._copyPending = false;
       this.surfaceError(error, '复制失败');
     };
     const handleSuccess = () => {
-      if (handled) {
+      if (!isCurrentRequest()) {
         return;
       }
-      handled = true;
+      request.handled = true;
+      this._copyRequest = null;
       this._copyPending = false;
       this.setData({ pageError: '' });
       try {
@@ -346,29 +382,61 @@ Page({
       return;
     }
     this._finishPending = true;
-    let modalHandled = false;
+    const request = {
+      generation: this._lifecycleGeneration,
+      expectedFingerprint: billFingerprint(this._currentBill),
+      modalHandled: false,
+      navigationFailureHandled: false,
+    };
+    this._finishRequest = request;
+    const isActiveRequest = () => (
+      this._finishRequest === request
+      && this._lifecycleGeneration === request.generation
+    );
+    const releaseRequest = () => {
+      if (!isActiveRequest()) {
+        return false;
+      }
+      this._finishRequest = null;
+      this._finishPending = false;
+      return true;
+    };
     const modalFailure = (error) => {
-      if (modalHandled) {
+      if (!isActiveRequest() || request.modalHandled) {
         return;
       }
-      modalHandled = true;
-      this._finishPending = false;
+      request.modalHandled = true;
+      releaseRequest();
       this.surfaceError(error, '打开确认提示失败');
     };
     const modalSuccess = (result) => {
-      if (modalHandled) {
+      if (!isActiveRequest() || request.modalHandled) {
         return;
       }
-      modalHandled = true;
+      request.modalHandled = true;
       if (!result || !result.confirm) {
-        this._finishPending = false;
+        releaseRequest();
+        return;
+      }
+
+      storageReadError = null;
+      recoveredStoredCollector = false;
+      const currentBill = store.load();
+      if (storageReadError) {
+        releaseRequest();
+        this.surfaceError(storageReadError, '读取账单失败');
+        return;
+      }
+      if (!currentBill || billFingerprint(currentBill) !== request.expectedFingerprint) {
+        releaseRequest();
+        this.surfaceError(null, '账单已更新，请重新确认');
         return;
       }
 
       try {
         store.clear();
       } catch (error) {
-        this._finishPending = false;
+        releaseRequest();
         this.surfaceError(error, '清除账单失败');
         return;
       }
@@ -377,13 +445,12 @@ Page({
       this._currentSettlement = null;
       this.setData(Object.assign({}, EMPTY_STATE));
 
-      let navigationFailureHandled = false;
       const navigationFailure = (error) => {
-        if (navigationFailureHandled) {
+        if (!isActiveRequest() || request.navigationFailureHandled) {
           return;
         }
-        navigationFailureHandled = true;
-        this._finishPending = false;
+        request.navigationFailureHandled = true;
+        releaseRequest();
         this.surfaceError(error, '返回开始页失败');
       };
       try {
