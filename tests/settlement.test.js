@@ -10,7 +10,7 @@ function createParticipants(count) {
   }));
 }
 
-test('routes case one debts to the highest-paying collector', () => {
+test('routes case one debts to the default collector', () => {
   const result = calculateSettlement({
     participants: createParticipants(5),
     expenses: [
@@ -78,6 +78,64 @@ test('routes a collector payment to another creditor', () => {
   ]);
 });
 
+test('chooses the greatest positive net instead of the highest paid amount', () => {
+  const result = calculateSettlement({
+    participants: createParticipants(3),
+    expenses: [
+      {
+        amountCents: 10000,
+        payerId: 'p1',
+        splitMode: 'selected',
+        participantIds: ['p1', 'p3'],
+      },
+      {
+        amountCents: 6000,
+        payerId: 'p2',
+        splitMode: 'selected',
+        participantIds: ['p3'],
+      },
+    ],
+  });
+
+  assert.equal(result.collectorId, 'p2');
+});
+
+test('breaks equal positive net ties by participant order', () => {
+  const result = calculateSettlement({
+    participants: createParticipants(3),
+    expenses: [
+      {
+        amountCents: 6000,
+        payerId: 'p1',
+        splitMode: 'selected',
+        participantIds: ['p3'],
+      },
+      {
+        amountCents: 10000,
+        payerId: 'p2',
+        splitMode: 'selected',
+        participantIds: ['p3'],
+      },
+      {
+        amountCents: 8000,
+        payerId: 'p3',
+        splitMode: 'selected',
+        participantIds: ['p2', 'p3'],
+      },
+    ],
+  });
+
+  assert.deepEqual(
+    result.members.map(({ paidCents, netCents }) => ({ paidCents, netCents })),
+    [
+      { paidCents: 6000, netCents: 6000 },
+      { paidCents: 10000, netCents: 6000 },
+      { paidCents: 8000, netCents: -12000 },
+    ],
+  );
+  assert.equal(result.collectorId, 'p1');
+});
+
 test('preserves exact owed and net cent invariants', () => {
   const result = calculateSettlement({
     participants: createParticipants(3),
@@ -127,6 +185,56 @@ test('rejects missing and malformed participant entries with a controlled error'
   }
 });
 
+test('rejects non-string and blank participant IDs', () => {
+  for (const id of [undefined, null, '', '   ', 1]) {
+    assert.throws(
+      () => assertBill({
+        participants: [
+          { id, displayName: 'A' },
+          { id: 'p2', displayName: 'B' },
+        ],
+        expenses: [],
+      }),
+      { name: 'Error', message: '参与人 ID 无效' },
+    );
+  }
+});
+
+test('rejects duplicate participant IDs', () => {
+  assert.throws(
+    () => assertBill({
+      participants: [
+        { id: 'p1', displayName: 'A' },
+        { id: 'p1', displayName: 'B' },
+      ],
+      expenses: [],
+    }),
+    { name: 'Error', message: '参与人 ID 重复' },
+  );
+});
+
+test('rejects a missing participant ID before undefined expense IDs can match it', () => {
+  const participants = [
+    { displayName: 'A' },
+    { id: 'p2', displayName: 'B' },
+  ];
+
+  for (const expense of [
+    { amountCents: 100, payerId: undefined, splitMode: 'all' },
+    {
+      amountCents: 100,
+      payerId: 'p2',
+      splitMode: 'selected',
+      participantIds: [undefined],
+    },
+  ]) {
+    assert.throws(
+      () => assertBill({ participants, expenses: [expense] }),
+      { name: 'Error', message: '参与人 ID 无效' },
+    );
+  }
+});
+
 test('rejects a hole in selected participant IDs', () => {
   assert.throws(
     () => assertBill({
@@ -136,6 +244,21 @@ test('rejects a hole in selected participant IDs', () => {
         payerId: 'p1',
         splitMode: 'selected',
         participantIds: Array(1),
+      }],
+    }),
+    { name: 'Error', message: '承担人无效' },
+  );
+});
+
+test('rejects duplicate selected participant IDs', () => {
+  assert.throws(
+    () => assertBill({
+      participants: createParticipants(2),
+      expenses: [{
+        amountCents: 100,
+        payerId: 'p1',
+        splitMode: 'selected',
+        participantIds: ['p1', 'p1'],
       }],
     }),
     { name: 'Error', message: '承担人无效' },

@@ -23,6 +23,9 @@ function assertBill(bill) {
     }
   }
   const participantIds = bill.participants.map((participant) => participant && participant.id);
+  if (participantIds.some((id) => typeof id !== 'string' || id.trim() === '')) {
+    throw new Error('参与人 ID 无效');
+  }
   if (new Set(participantIds).size !== participantIds.length) {
     throw new Error('参与人 ID 重复');
   }
@@ -70,6 +73,9 @@ function assertBill(bill) {
       }
       if (!Array.isArray(expense.participantIds) || expense.participantIds.length === 0) {
         throw new Error('至少选择一位承担人');
+      }
+      if (new Set(expense.participantIds).size !== expense.participantIds.length) {
+        throw new Error('承担人无效');
       }
       if (expense.participantIds.some((id) => !participantIdSet.has(id))) {
         throw new Error('承担人无效');
@@ -125,7 +131,7 @@ function calculateSettlement(bill, requestedCollectorId) {
 
   if (!collector && positiveMembers.length > 0) {
     collector = [...positiveMembers].sort((left, right) => (
-      right.paidCents - left.paidCents
+      right.netCents - left.netCents
       || participantOrder.get(left.id) - participantOrder.get(right.id)
     ))[0];
   }
