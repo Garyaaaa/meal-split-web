@@ -131,7 +131,7 @@ function calculateSettlement(bill, requestedCollectorId) {
 
   if (!collector && positiveMembers.length > 0) {
     collector = [...positiveMembers].sort((left, right) => (
-      right.netCents - left.netCents
+      right.paidCents - left.paidCents
       || participantOrder.get(left.id) - participantOrder.get(right.id)
     ))[0];
   }

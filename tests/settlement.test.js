@@ -78,7 +78,7 @@ test('routes a collector payment to another creditor', () => {
   ]);
 });
 
-test('chooses the greatest positive net instead of the highest paid amount', () => {
+test('chooses the highest-paid creditor even when another creditor has a greater net', () => {
   const result = calculateSettlement({
     participants: createParticipants(3),
     expenses: [
@@ -97,10 +97,18 @@ test('chooses the greatest positive net instead of the highest paid amount', () 
     ],
   });
 
-  assert.equal(result.collectorId, 'p2');
+  assert.deepEqual(
+    result.members.map(({ paidCents, netCents }) => ({ paidCents, netCents })),
+    [
+      { paidCents: 10000, netCents: 5000 },
+      { paidCents: 6000, netCents: 6000 },
+      { paidCents: 0, netCents: -11000 },
+    ],
+  );
+  assert.equal(result.collectorId, 'p1');
 });
 
-test('breaks equal positive net ties by participant order', () => {
+test('breaks equal paid creditor ties by participant order', () => {
   const result = calculateSettlement({
     participants: createParticipants(3),
     expenses: [
@@ -111,16 +119,10 @@ test('breaks equal positive net ties by participant order', () => {
         participantIds: ['p3'],
       },
       {
-        amountCents: 10000,
+        amountCents: 6000,
         payerId: 'p2',
         splitMode: 'selected',
         participantIds: ['p3'],
-      },
-      {
-        amountCents: 8000,
-        payerId: 'p3',
-        splitMode: 'selected',
-        participantIds: ['p2', 'p3'],
       },
     ],
   });
@@ -129,8 +131,8 @@ test('breaks equal positive net ties by participant order', () => {
     result.members.map(({ paidCents, netCents }) => ({ paidCents, netCents })),
     [
       { paidCents: 6000, netCents: 6000 },
-      { paidCents: 10000, netCents: 6000 },
-      { paidCents: 8000, netCents: -12000 },
+      { paidCents: 6000, netCents: 6000 },
+      { paidCents: 0, netCents: -12000 },
     ],
   );
   assert.equal(result.collectorId, 'p1');
