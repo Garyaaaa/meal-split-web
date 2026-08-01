@@ -370,3 +370,23 @@
   font-size: 24rpx;
   line-height: 1.6;
 }
+
+@media (max-width: 374px) {
+  .finish-button,
+  .collector-chip,
+  .copy-button,
+  .return-button {
+    min-height: 44px;
+  }
+
+  .finish-button,
+  .collector-chip {
+    min-width: 44px;
+  }
+
+  .finish-button,
+  .copy-button,
+  .return-button {
+    line-height: 44px;
+  }
+}

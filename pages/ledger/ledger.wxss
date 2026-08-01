@@ -280,3 +280,25 @@
   color: #969ba4;
   opacity: 1;
 }
+
+@media (max-width: 374px) {
+  .add-expense-button,
+  .expense-row,
+  .expense-delete,
+  .participant-button,
+  .result-button {
+    min-height: 44px;
+  }
+
+  .add-expense-button,
+  .expense-delete {
+    min-width: 44px;
+  }
+
+  .add-expense-button,
+  .expense-delete,
+  .participant-button,
+  .result-button {
+    line-height: 44px;
+  }
+}

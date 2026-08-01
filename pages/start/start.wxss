@@ -267,3 +267,39 @@
   font-size: 29rpx;
   line-height: 104rpx;
 }
+
+@media (max-width: 374px) {
+  .draft-link,
+  .segment,
+  .stepper-button,
+  .name-input,
+  .delete-button,
+  .add-button,
+  .submit-button {
+    min-height: 44px;
+  }
+
+  .draft-link,
+  .stepper-button,
+  .delete-button {
+    min-width: 44px;
+  }
+
+  .draft-link,
+  .segment,
+  .stepper-button,
+  .delete-button,
+  .add-button,
+  .submit-button {
+    line-height: 44px;
+  }
+
+  .stepper-button,
+  .name-input {
+    height: 44px;
+  }
+
+  .stepper-button {
+    width: 44px;
+  }
+}

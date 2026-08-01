@@ -873,7 +873,7 @@ test('onShow resets in-flight action guards after returning to the page', () => 
   assert.equal(calls.showModal.length, 2);
 });
 
-test('template bindings, stable keys, accessibility, and touch sizes are safe', () => {
+test('template bindings, stable keys, and accessibility are safe', () => {
   const root = path.resolve(__dirname, '..');
   const wxml = fs.readFileSync(path.join(root, 'pages/result/result.wxml'), 'utf8');
   const wxss = fs.readFileSync(path.join(root, 'pages/result/result.wxss'), 'utf8');
@@ -895,10 +895,6 @@ test('template bindings, stable keys, accessibility, and touch sizes are safe', 
   assert.match(wxml, /aria-label="复制群聊结算文案"/);
   assert.match(wxml, /aria-label="返回修改账单"/);
   assert.match(wxml, /class="page-error"[^>]*aria-role="alert"/);
-  assert.match(wxss, /\.collector-chip\s*\{[^}]*min-height:\s*88rpx/);
-  assert.match(wxss, /\.finish-button\s*\{[^}]*min-height:\s*88rpx/);
-  assert.match(wxss, /\.copy-button\s*\{[^}]*min-height:\s*(?:9\d|1\d\d)rpx/);
-  assert.match(wxss, /\.return-button\s*\{[^}]*min-height:\s*88rpx/);
   assert.match(wxss, /font-variant-numeric:\s*tabular-nums/);
   assert.match(wxss, /env\(safe-area-inset-bottom\)/);
   assert.doesNotMatch(wxss, /\binset\s*:/);

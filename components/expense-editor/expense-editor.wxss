@@ -235,3 +235,35 @@
   font-weight: 650;
   line-height: 100rpx;
 }
+
+@media (max-width: 374px) {
+  .editor-mask,
+  .editor-sheet,
+  .close-button,
+  .amount-input,
+  .choice-chip,
+  .split-segment,
+  .bearer-chip,
+  .note-input,
+  .save-button {
+    min-height: 44px;
+  }
+
+  .close-button,
+  .choice-chip,
+  .bearer-chip {
+    min-width: 44px;
+  }
+
+  .close-button,
+  .amount-input,
+  .choice-chip,
+  .split-segment,
+  .save-button {
+    line-height: 44px;
+  }
+
+  .amount-input {
+    height: 44px;
+  }
+}
