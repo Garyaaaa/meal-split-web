@@ -93,3 +93,20 @@ test('preserves exact owed and net cent invariants', () => {
     0,
   );
 });
+
+test('rejects a cumulative bill total above the safe integer limit', () => {
+  assert.throws(
+    () => calculateSettlement({
+      participants: createParticipants(2),
+      expenses: [
+        {
+          amountCents: Number.MAX_SAFE_INTEGER,
+          payerId: 'p1',
+          splitMode: 'all',
+        },
+        { amountCents: 1, payerId: 'p2', splitMode: 'all' },
+      ],
+    }),
+    /账单总额过大/,
+  );
+});

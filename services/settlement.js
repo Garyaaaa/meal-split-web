@@ -62,6 +62,9 @@ function calculateSettlement(bill, requestedCollectorId) {
   let totalCents = 0;
 
   for (const expense of bill.expenses) {
+    if (!Number.isSafeInteger(totalCents + expense.amountCents)) {
+      throw new Error('账单总额过大');
+    }
     totalCents += expense.amountCents;
     paidCents.set(expense.payerId, paidCents.get(expense.payerId) + expense.amountCents);
 
