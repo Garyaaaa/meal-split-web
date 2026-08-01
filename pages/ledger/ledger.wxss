@@ -38,15 +38,15 @@
 .add-expense-button {
   flex: none;
   min-width: 168rpx;
-  min-height: 84rpx;
+  min-height: 88rpx;
   margin: 0;
   padding: 0 22rpx;
-  border-radius: 42rpx;
+  border-radius: 44rpx;
   background: var(--blue);
   color: #ffffff;
   font-size: 26rpx;
   font-weight: 650;
-  line-height: 84rpx;
+  line-height: 88rpx;
 }
 
 .total-card {
@@ -159,13 +159,13 @@
 .expense-delete {
   flex: none;
   min-width: 92rpx;
-  min-height: 78rpx;
+  min-height: 88rpx;
   margin: 0 -12rpx 0 12rpx;
   padding: 0 12rpx;
   background: transparent;
   color: var(--secondary);
   font-size: 23rpx;
-  line-height: 78rpx;
+  line-height: 88rpx;
 }
 
 .empty-card {

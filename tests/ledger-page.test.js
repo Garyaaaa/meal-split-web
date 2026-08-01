@@ -13,6 +13,7 @@ const calls = {
 };
 let failWrites = false;
 let failReads = false;
+let navigateThrows = false;
 
 function clone(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
@@ -38,6 +39,9 @@ global.wx = {
     calls.reLaunch.push(options);
   },
   navigateTo(options) {
+    if (navigateThrows) {
+      throw new Error('navigation threw');
+    }
     calls.navigateTo.push(options);
   },
   showModal(options) {
@@ -101,6 +105,7 @@ function resetHarness() {
   storage.clear();
   failWrites = false;
   failReads = false;
+  navigateThrows = false;
   for (const callList of Object.values(calls)) {
     callList.length = 0;
   }
@@ -346,6 +351,75 @@ test('participant and result navigation obey the empty-expense guard', () => {
   assert.equal(calls.navigateTo[1].url, '/pages/result/result');
 });
 
+test('participant navigation locks rapid taps, unlocks after failure, and retries once', () => {
+  resetHarness();
+  persist(createDraft());
+  const page = createPage();
+  page.onShow();
+
+  page.editParticipants();
+  page.editParticipants();
+  assert.equal(calls.navigateTo.length, 1);
+
+  calls.navigateTo[0].fail(new Error('navigation failed'));
+  calls.navigateTo[0].fail(new Error('duplicate callback'));
+  page.editParticipants();
+  page.editParticipants();
+
+  assert.equal(calls.navigateTo.length, 2);
+  assert.equal(calls.showToast.length, 1);
+});
+
+test('result navigation locks rapid taps, unlocks after failure, and retries once', () => {
+  resetHarness();
+  persist(createDraft({ expenses: [expense('e1')] }));
+  const page = createPage();
+  page.onShow();
+
+  page.viewResult();
+  page.viewResult();
+  assert.equal(calls.navigateTo.length, 1);
+
+  calls.navigateTo[0].fail(new Error('navigation failed'));
+  calls.navigateTo[0].fail(new Error('duplicate callback'));
+  page.viewResult();
+  page.viewResult();
+
+  assert.equal(calls.navigateTo.length, 2);
+  assert.equal(calls.showToast.length, 1);
+});
+
+test('successful navigation remains locked until onShow resets the shared guard', () => {
+  resetHarness();
+  persist(createDraft({ expenses: [expense('e1')] }));
+  const page = createPage();
+  page.onShow();
+
+  page.editParticipants();
+  page.viewResult();
+  assert.equal(calls.navigateTo.length, 1);
+
+  page.onShow();
+  page.viewResult();
+  assert.equal(calls.navigateTo.length, 2);
+  assert.equal(calls.navigateTo[1].url, '/pages/result/result');
+});
+
+test('synchronous navigation failure clears the guard and permits retry', () => {
+  resetHarness();
+  persist(createDraft({ expenses: [expense('e1')] }));
+  const page = createPage();
+  page.onShow();
+  navigateThrows = true;
+
+  page.viewResult();
+  assert.equal(calls.showToast.length, 1);
+
+  navigateThrows = false;
+  page.viewResult();
+  assert.equal(calls.navigateTo.length, 1);
+});
+
 test('asynchronous navigation and modal failures surface controlled errors', () => {
   resetHarness();
   persist(createDraft({ expenses: [expense('e1')] }));
@@ -384,6 +458,11 @@ test('templates bind the editor and isolate delete taps; styles avoid unsupporte
     fs.readFileSync(path.join(root, 'pages/ledger/ledger.wxss'), 'utf8'),
     fs.readFileSync(path.join(root, 'components/expense-editor/expense-editor.wxss'), 'utf8'),
   ].join('\n');
+  const ledgerStyles = fs.readFileSync(path.join(root, 'pages/ledger/ledger.wxss'), 'utf8');
+  const editorStyles = fs.readFileSync(
+    path.join(root, 'components/expense-editor/expense-editor.wxss'),
+    'utf8',
+  );
 
   assert.match(ledgerWxml, /<expense-editor[\s\S]*bind:save="saveExpense"[\s\S]*bind:close="closeEditor"/);
   assert.match(ledgerWxml, /catchtap="deleteExpense"/);
@@ -393,5 +472,26 @@ test('templates bind the editor and isolate delete taps; styles avoid unsupporte
   assert.match(ledgerWxml, /aria-role="button"/);
   assert.match(editorWxml, /aria-pressed="{{item\.isPayer}}"/);
   assert.match(editorWxml, /aria-checked="{{item\.isSelected}}"/);
+  assert.match(
+    editorWxml,
+    /class="close-button"[\s\S]*aria-label="取消"[^>]*>取消<\/button>/,
+  );
+  assert.match(
+    editorStyles,
+    /\.close-button\s*\{[^}]*min-width:\s*(?:88|9\d|1\d\d)rpx;[^}]*min-height:\s*88rpx/,
+  );
+  assert.match(
+    editorStyles,
+    /\.choice-chip,\s*\.bearer-chip\s*\{[^}]*min-width:\s*88rpx;[^}]*min-height:\s*88rpx/,
+  );
+  assert.match(editorStyles, /\.split-segment\s*\{[^}]*min-height:\s*88rpx/);
+  assert.match(
+    ledgerStyles,
+    /\.add-expense-button\s*\{[^}]*min-width:\s*(?:88|9\d|1\d\d)rpx;[^}]*min-height:\s*88rpx/,
+  );
+  assert.match(
+    ledgerStyles,
+    /\.expense-delete\s*\{[^}]*min-width:\s*(?:88|9\d|1\d\d)rpx;[^}]*min-height:\s*88rpx/,
+  );
   assert.doesNotMatch(styles, /\binset\s*:/);
 });

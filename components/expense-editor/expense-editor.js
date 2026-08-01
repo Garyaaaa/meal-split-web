@@ -35,11 +35,6 @@ Component({
     visible: {
       type: Boolean,
       value: false,
-      observer(visible) {
-        if (visible) {
-          this.resetForm();
-        }
-      },
     },
     participants: {
       type: Array,
@@ -48,6 +43,14 @@ Component({
     value: {
       type: Object,
       value: null,
+    },
+  },
+
+  observers: {
+    'visible, participants, value'(visible) {
+      if (visible) {
+        this.resetForm();
+      }
     },
   },
 

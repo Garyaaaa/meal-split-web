@@ -5,7 +5,7 @@
     <view class="sheet-header">
       <text wx:if="{{value}}" class="sheet-title">编辑消费</text>
       <text wx:else class="sheet-title">记一笔</text>
-      <button class="close-button" bindtap="close" aria-label="关闭">完成</button>
+      <button class="close-button" bindtap="close" aria-label="取消">取消</button>
     </view>
 
     <scroll-view class="editor-scroll" scroll-y enhanced show-scrollbar="{{false}}">

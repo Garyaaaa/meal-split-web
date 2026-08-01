@@ -103,6 +103,7 @@ Page({
   },
 
   onShow() {
+    this._navigationPending = false;
     this._draftReady = false;
     storageReadError = null;
     const bill = store.load();
@@ -290,30 +291,42 @@ Page({
   },
 
   editParticipants() {
-    if (!this._draftReady) {
+    if (!this._draftReady || !this.data.bill) {
       return;
     }
-    try {
-      wx.navigateTo({
-        url: '/pages/start/start?edit=1',
-        fail: (error) => this.surfaceError(error, '打开参与人设置失败'),
-      });
-    } catch (error) {
-      this.surfaceError(error, '打开参与人设置失败');
-    }
+    this.navigateOnce('/pages/start/start?edit=1', '打开参与人设置失败');
   },
 
   viewResult() {
-    if (!this._draftReady || !this.data.hasExpenses) {
+    if (!this._draftReady || !this.data.bill || !this.data.hasExpenses) {
       return;
     }
+    this.navigateOnce('/pages/result/result', '打开结算结果失败');
+  },
+
+  navigateOnce(url, fallback) {
+    if (this._navigationPending) {
+      return;
+    }
+
+    this._navigationPending = true;
+    let failureHandled = false;
+    const handleFailure = (error) => {
+      if (failureHandled) {
+        return;
+      }
+      failureHandled = true;
+      this._navigationPending = false;
+      this.surfaceError(error, fallback);
+    };
+
     try {
       wx.navigateTo({
-        url: '/pages/result/result',
-        fail: (error) => this.surfaceError(error, '打开结算结果失败'),
+        url,
+        fail: handleFailure,
       });
     } catch (error) {
-      this.surfaceError(error, '打开结算结果失败');
+      handleFailure(error);
     }
   },
 });

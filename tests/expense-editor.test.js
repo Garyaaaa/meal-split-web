@@ -11,6 +11,19 @@ function clone(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 }
 
+function synchronizeProperties(instance, patch = {}) {
+  Object.assign(instance.data, patch);
+  const observers = componentDefinition.observers || {};
+  const observer = observers['visible, participants, value'];
+  assert.equal(typeof observer, 'function', 'component must define a multi-field observer');
+  observer.call(
+    instance,
+    instance.data.visible,
+    instance.data.participants,
+    instance.data.value,
+  );
+}
+
 const participants = [
   { id: 'p1', displayName: 'A' },
   { id: 'p2', displayName: 'B' },
@@ -35,8 +48,7 @@ function createComponent(properties = {}) {
     },
   };
   Object.assign(instance, componentDefinition.methods);
-  instance.data.visible = true;
-  componentDefinition.properties.visible.observer.call(instance, true);
+  synchronizeProperties(instance, { visible: true });
   return { instance, emitted };
 }
 
@@ -50,7 +62,7 @@ test('opening a new expense resets stale fields and selects every participant', 
     selectedParticipantIds: ['p3'],
     error: 'old error',
   });
-  componentDefinition.properties.visible.observer.call(instance, true);
+  synchronizeProperties(instance, { visible: true });
 
   assert.equal(instance.data.amountInput, '');
   assert.equal(instance.data.note, '');
@@ -58,6 +70,60 @@ test('opening a new expense resets stale fields and selects every participant', 
   assert.equal(instance.data.splitMode, 'all');
   assert.deepEqual(instance.data.selectedParticipantIds, ['p1', 'p2', 'p3']);
   assert.equal(instance.data.error, '');
+});
+
+test('simultaneous visible, participant, and value propagation initializes the edit model', () => {
+  const editedParticipants = [
+    { id: 'x1', displayName: '甲' },
+    { id: 'x2', displayName: '乙' },
+  ];
+  const editedValue = {
+    id: 'expense-x',
+    amountInput: '18.80',
+    payerId: 'x2',
+    splitMode: 'selected',
+    participantIds: ['x2'],
+    note: '午饭',
+  };
+  const { instance } = createComponent({
+    visible: true,
+    participants: editedParticipants,
+    value: editedValue,
+  });
+
+  assert.equal(instance.data.amountInput, '18.80');
+  assert.equal(instance.data.payerId, 'x2');
+  assert.deepEqual(instance.data.selectedParticipantIds, ['x2']);
+  assert.equal(instance.data.note, '午饭');
+});
+
+test('value and participant changes while visible resynchronize without internal reset loops', () => {
+  const { instance } = createComponent();
+  const nextParticipants = [
+    { id: 'q1', displayName: 'Q' },
+    { id: 'q2', displayName: 'R' },
+  ];
+  const nextValue = {
+    id: 'expense-q',
+    amountInput: '6.66',
+    payerId: 'q2',
+    splitMode: 'all',
+    participantIds: [],
+    note: '',
+  };
+
+  synchronizeProperties(instance, {
+    participants: nextParticipants,
+    value: nextValue,
+  });
+
+  assert.equal(instance.data.amountInput, '6.66');
+  assert.equal(instance.data.payerId, 'q2');
+  assert.deepEqual(instance.data.selectedParticipantIds, ['q1', 'q2']);
+  assert.deepEqual(
+    instance.data.participantOptions.map((option) => option.id),
+    ['q1', 'q2'],
+  );
 });
 
 test('opening an edited selected expense restores exact values without mutating properties', () => {
