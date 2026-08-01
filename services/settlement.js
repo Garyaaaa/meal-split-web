@@ -12,6 +12,16 @@ function assertBill(bill) {
     throw new Error('消费记录无效');
   }
 
+  for (let index = 0; index < bill.participants.length; index += 1) {
+    const participant = bill.participants[index];
+    if (
+      !Object.prototype.hasOwnProperty.call(bill.participants, index)
+      || !participant
+      || typeof participant !== 'object'
+    ) {
+      throw new Error('参与人姓名为空');
+    }
+  }
   const participantIds = bill.participants.map((participant) => participant && participant.id);
   if (new Set(participantIds).size !== participantIds.length) {
     throw new Error('参与人 ID 重复');
@@ -30,6 +40,16 @@ function assertBill(bill) {
   }
 
   const participantIdSet = new Set(participantIds);
+  for (let index = 0; index < bill.expenses.length; index += 1) {
+    const expense = bill.expenses[index];
+    if (
+      !Object.prototype.hasOwnProperty.call(bill.expenses, index)
+      || !expense
+      || typeof expense !== 'object'
+    ) {
+      throw new Error('消费记录无效');
+    }
+  }
   for (const expense of bill.expenses) {
     if (!expense || !Number.isSafeInteger(expense.amountCents) || expense.amountCents <= 0) {
       throw new Error('消费金额无效');
@@ -41,6 +61,13 @@ function assertBill(bill) {
       throw new Error('承担方式无效');
     }
     if (expense.splitMode === 'selected') {
+      if (Array.isArray(expense.participantIds)) {
+        for (let index = 0; index < expense.participantIds.length; index += 1) {
+          if (!Object.prototype.hasOwnProperty.call(expense.participantIds, index)) {
+            throw new Error('承担人无效');
+          }
+        }
+      }
       if (!Array.isArray(expense.participantIds) || expense.participantIds.length === 0) {
         throw new Error('至少选择一位承担人');
       }
@@ -62,7 +89,7 @@ function calculateSettlement(bill, requestedCollectorId) {
   let totalCents = 0;
 
   for (const expense of bill.expenses) {
-    if (!Number.isSafeInteger(totalCents + expense.amountCents)) {
+    if (expense.amountCents > Number.MAX_SAFE_INTEGER - totalCents) {
       throw new Error('账单总额过大');
     }
     totalCents += expense.amountCents;

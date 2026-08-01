@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { calculateSettlement } = require('../services/settlement');
+const { assertBill, calculateSettlement } = require('../services/settlement');
 
 function createParticipants(count) {
   return Array.from({ length: count }, (_, index) => ({
@@ -104,9 +104,49 @@ test('rejects a cumulative bill total above the safe integer limit', () => {
           payerId: 'p1',
           splitMode: 'all',
         },
-        { amountCents: 1, payerId: 'p2', splitMode: 'all' },
+        { amountCents: 2, payerId: 'p2', splitMode: 'all' },
       ],
     }),
-    /账单总额过大/,
+    { name: 'Error', message: '账单总额过大' },
   );
+});
+
+test('rejects missing and malformed participant entries with a controlled error', () => {
+  const sparseParticipants = createParticipants(2);
+  delete sparseParticipants[1];
+
+  for (const participants of [
+    sparseParticipants,
+    [createParticipants(2)[0], null],
+    [createParticipants(2)[0], 'B'],
+  ]) {
+    assert.throws(
+      () => assertBill({ participants, expenses: [] }),
+      { name: 'Error', message: '参与人姓名为空' },
+    );
+  }
+});
+
+test('rejects a hole in selected participant IDs', () => {
+  assert.throws(
+    () => assertBill({
+      participants: createParticipants(2),
+      expenses: [{
+        amountCents: 100,
+        payerId: 'p1',
+        splitMode: 'selected',
+        participantIds: Array(1),
+      }],
+    }),
+    { name: 'Error', message: '承担人无效' },
+  );
+});
+
+test('rejects missing and null expense entries as invalid records', () => {
+  for (const expenses of [Array(1), [null]]) {
+    assert.throws(
+      () => assertBill({ participants: createParticipants(2), expenses }),
+      { name: 'Error', message: '消费记录无效' },
+    );
+  }
 });
