@@ -23,11 +23,6 @@ function isDenseArray(value) {
 function assertDraftBill(bill) {
   assertBill(bill);
 
-  const hasPersistenceMetadata = PERSISTENCE_FIELDS.some((field) => hasOwn(bill, field));
-  if (!hasPersistenceMetadata && bill.expenses.length === 0) {
-    return;
-  }
-
   if (
     !PERSISTENCE_FIELDS.every((field) => hasOwn(bill, field))
     || bill.id !== 'local-draft'

@@ -3,21 +3,30 @@ const assert = require('node:assert/strict');
 
 const { STORAGE_KEY, createDraftStore } = require('../services/draft-store');
 
-function createBill() {
+function createBill(overrides = {}) {
   return {
+    id: 'local-draft',
+    participantMode: 'letters',
     participants: [
       { id: 'p1', displayName: 'A' },
       { id: 'p2', displayName: 'B' },
     ],
     expenses: [],
+    collectorId: null,
+    updatedAt: 0,
+    ...overrides,
+  };
+}
+
+function createMinimalBill() {
+  return {
+    participants: createBill().participants,
+    expenses: [],
   };
 }
 
 function createAppBill(overrides = {}) {
-  return {
-    id: 'local-draft',
-    participantMode: 'letters',
-    participants: createBill().participants,
+  return createBill({
     expenses: [
       {
         id: 'e1',
@@ -28,10 +37,8 @@ function createAppBill(overrides = {}) {
         note: '',
       },
     ],
-    collectorId: null,
-    updatedAt: 0,
     ...overrides,
-  };
+  });
 }
 
 function clone(value) {
@@ -57,7 +64,7 @@ function createMemoryStorage(initialValue) {
   };
 }
 
-test('saves and loads a valid empty draft in a versioned envelope', () => {
+test('saves and loads a complete empty draft in a versioned envelope', () => {
   const bill = createBill();
   const storage = createMemoryStorage();
   const store = createDraftStore(storage);
@@ -66,6 +73,44 @@ test('saves and loads a valid empty draft in a versioned envelope', () => {
 
   assert.deepEqual(storage.getStorageSync(STORAGE_KEY), { version: 1, bill });
   assert.deepEqual(store.load(), bill);
+});
+
+test('rejects a metadata-free empty bill on save with a controlled error', () => {
+  const store = createDraftStore(createMemoryStorage());
+
+  assert.throws(
+    () => store.save(createMinimalBill()),
+    { name: 'Error', message: '账单草稿无效' },
+  );
+});
+
+test('returns null when loading a metadata-free empty bill', () => {
+  const storage = createMemoryStorage({ version: 1, bill: createMinimalBill() });
+
+  assert.equal(createDraftStore(storage).load(), null);
+});
+
+test('rejects save when each required metadata property is missing', () => {
+  for (const field of ['id', 'participantMode', 'collectorId', 'updatedAt']) {
+    const bill = createBill();
+    delete bill[field];
+    const store = createDraftStore(createMemoryStorage());
+
+    assert.throws(
+      () => store.save(bill),
+      { name: 'Error', message: '账单草稿无效' },
+    );
+  }
+});
+
+test('returns null when each required metadata property is missing on load', () => {
+  for (const field of ['id', 'participantMode', 'collectorId', 'updatedAt']) {
+    const bill = createBill();
+    delete bill[field];
+    const storage = createMemoryStorage({ version: 1, bill });
+
+    assert.equal(createDraftStore(storage).load(), null);
+  }
 });
 
 test('clears the stored draft', () => {
@@ -86,10 +131,9 @@ test('ignores drafts from an incompatible version', () => {
 test('ignores drafts with invalid participants', () => {
   const storage = createMemoryStorage({
     version: 1,
-    bill: {
+    bill: createBill({
       participants: [{ id: 'p1', displayName: 'A' }],
-      expenses: [],
-    },
+    }),
   });
 
   assert.equal(createDraftStore(storage).load(), null);
@@ -99,7 +143,7 @@ test('rejects invalid bills on save with a controlled error', () => {
   const store = createDraftStore(createMemoryStorage());
 
   assert.throws(
-    () => store.save({ participants: [], expenses: [] }),
+    () => store.save(createBill({ participants: [] })),
     { name: 'Error', message: '账单草稿无效' },
   );
 });
@@ -119,13 +163,6 @@ test('loads a complete app-shaped draft', () => {
 
 test('rejects a persisted draft with a bogus participant mode', () => {
   const bill = createAppBill({ participantMode: 'custom' });
-  const storage = createMemoryStorage({ version: 1, bill });
-
-  assert.equal(createDraftStore(storage).load(), null);
-});
-
-test('rejects partial persistence metadata even when expenses are empty', () => {
-  const bill = { ...createBill(), id: 'local-draft' };
   const storage = createMemoryStorage({ version: 1, bill });
 
   assert.equal(createDraftStore(storage).load(), null);
