@@ -1,0 +1,80 @@
+<view class="page-shell ledger-page">
+  <view class="ledger-header">
+    <view class="header-copy">
+      <text class="eyebrow">{{participantCount}} 人的账单</text>
+      <text class="headline">今天花了什么</text>
+    </view>
+    <button class="add-expense-button" bindtap="openNewExpense">＋ 记一笔</button>
+  </view>
+
+  <view class="total-card">
+    <text class="total-label">总消费</text>
+    <view class="total-money-row">
+      <text class="total-currency">¥</text>
+      <text class="total-money money">{{totalText}}</text>
+    </view>
+    <text class="total-caption">共 {{expenseCount}} 笔</text>
+  </view>
+
+  <view class="section-heading">
+    <text class="section-title">消费明细</text>
+    <text class="section-count">{{expenseCount}} 笔</text>
+  </view>
+
+  <view wx:if="{{hasExpenses}}" class="expense-list card">
+    <view
+      wx:for="{{expenseRows}}"
+      wx:key="id"
+      class="expense-row"
+      data-id="{{item.id}}"
+      bindtap="openEditExpense"
+      aria-role="button"
+      aria-label="{{item.title}}，{{item.detail}}，金额 {{item.amountText}} 元，点击编辑"
+    >
+      <view class="expense-copy">
+        <text class="expense-title">{{item.title}}</text>
+        <text class="expense-detail">{{item.detail}}</text>
+      </view>
+      <text class="expense-amount money">¥{{item.amountText}}</text>
+      <button
+        class="expense-delete"
+        data-id="{{item.id}}"
+        catchtap="deleteExpense"
+        aria-label="删除 {{item.title}}"
+      >删除</button>
+    </view>
+  </view>
+
+  <view wx:else class="empty-card card">
+    <text class="empty-icon">＋</text>
+    <text class="empty-title">还没有消费</text>
+    <text class="empty-description">点右上角“记一笔”，把第一笔账记下来。</text>
+  </view>
+
+  <view wx:if="{{collector}}" class="collector-card card">
+    <view class="collector-copy">
+      <text class="collector-label">建议收款人</text>
+      <text class="collector-name">{{collector.displayName}}</text>
+    </view>
+    <view class="collector-amount-wrap">
+      <text class="collector-caption">预计净收</text>
+      <text class="collector-amount money">¥{{collector.amountText}}</text>
+    </view>
+  </view>
+
+  <button class="participant-button" bindtap="editParticipants">调整参与人</button>
+  <text wx:if="{{pageError}}" class="page-error">{{pageError}}</text>
+  <button
+    class="result-button"
+    bindtap="viewResult"
+    disabled="{{!hasExpenses}}"
+  >查看结算结果</button>
+
+  <expense-editor
+    visible="{{editorVisible}}"
+    participants="{{participants}}"
+    value="{{editingExpense}}"
+    bind:save="saveExpense"
+    bind:close="closeEditor"
+  ></expense-editor>
+</view>

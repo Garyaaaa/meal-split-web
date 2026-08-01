@@ -1,0 +1,92 @@
+<view wx:if="{{visible}}" class="editor-layer">
+  <view class="editor-mask" bindtap="close"></view>
+  <view class="editor-sheet" catchtap="stopPropagation">
+    <view class="sheet-handle"></view>
+    <view class="sheet-header">
+      <text wx:if="{{value}}" class="sheet-title">编辑消费</text>
+      <text wx:else class="sheet-title">记一笔</text>
+      <button class="close-button" bindtap="close" aria-label="关闭">完成</button>
+    </view>
+
+    <scroll-view class="editor-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+      <view class="field-block amount-block">
+        <text class="field-label">金额</text>
+        <view class="amount-field">
+          <text class="currency-mark">¥</text>
+          <input
+            class="amount-input"
+            type="digit"
+            value="{{amountInput}}"
+            bindinput="onAmountInput"
+            placeholder="0.00"
+            placeholder-class="editor-placeholder"
+            focus="{{visible}}"
+          />
+        </view>
+      </view>
+
+      <view class="field-block">
+        <text class="field-label">谁付的钱</text>
+        <view class="chip-wrap">
+          <button
+            wx:for="{{participantOptions}}"
+            wx:key="id"
+            class="choice-chip {{item.isPayer ? 'choice-chip-active' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="choosePayer"
+            aria-pressed="{{item.isPayer}}"
+          >{{item.displayName}}</button>
+        </view>
+      </view>
+
+      <view class="field-block">
+        <text class="field-label">怎么分</text>
+        <view class="split-segments">
+          <button
+            class="split-segment {{splitMode === 'all' ? 'split-segment-active' : ''}}"
+            data-mode="all"
+            bindtap="chooseSplitMode"
+            aria-pressed="{{splitMode === 'all'}}"
+          >全员均摊</button>
+          <button
+            class="split-segment {{splitMode === 'selected' ? 'split-segment-active' : ''}}"
+            data-mode="selected"
+            bindtap="chooseSplitMode"
+            aria-pressed="{{splitMode === 'selected'}}"
+          >指定承担人</button>
+        </view>
+
+        <view wx:if="{{splitMode === 'selected'}}" class="bearer-wrap">
+          <button
+            wx:for="{{participantOptions}}"
+            wx:key="id"
+            class="bearer-chip {{item.isSelected ? 'bearer-chip-active' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="toggleParticipant"
+            aria-checked="{{item.isSelected}}"
+          >
+            <text class="check-mark">{{item.isSelected ? '✓' : ''}}</text>
+            <text>{{item.displayName}}</text>
+          </button>
+        </view>
+      </view>
+
+      <view class="field-block note-block">
+        <text class="field-label">备注（选填）</text>
+        <textarea
+          class="note-input"
+          value="{{note}}"
+          bindinput="onNoteInput"
+          maxlength="30"
+          auto-height
+          placeholder="比如：周五晚餐"
+          placeholder-class="editor-placeholder"
+        ></textarea>
+        <text class="note-limit">最多 30 字</text>
+      </view>
+
+      <text wx:if="{{error}}" class="editor-error">{{error}}</text>
+      <button class="save-button" bindtap="submit">保存消费</button>
+    </scroll-view>
+  </view>
+</view>
