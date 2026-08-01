@@ -2,10 +2,58 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  createBill,
   createLetterParticipants,
   createNamedParticipants,
   reconcileParticipants,
 } = require('../domain/participants');
+
+test('creates a complete letter-mode draft with the requested participant count', () => {
+  const before = Date.now();
+  const bill = createBill('letters', 5);
+  const after = Date.now();
+
+  assert.deepEqual(Object.keys(bill), [
+    'id',
+    'participantMode',
+    'participants',
+    'expenses',
+    'collectorId',
+    'updatedAt',
+  ]);
+  assert.equal(bill.id, 'local-draft');
+  assert.equal(bill.participantMode, 'letters');
+  assert.deepEqual(bill.participants, createLetterParticipants(5));
+  assert.deepEqual(bill.expenses, []);
+  assert.equal(bill.collectorId, null);
+  assert.equal(Number.isInteger(bill.updatedAt), true);
+  assert.equal(bill.updatedAt >= before && bill.updatedAt <= after, true);
+});
+
+test('creates a complete names-mode draft through the existing name validation', () => {
+  const bill = createBill('names', [' 盖老师 ', '小李']);
+
+  assert.deepEqual(bill, {
+    id: 'local-draft',
+    participantMode: 'names',
+    participants: [
+      { id: 'p1', displayName: '盖老师' },
+      { id: 'p2', displayName: '小李' },
+    ],
+    expenses: [],
+    collectorId: null,
+    updatedAt: bill.updatedAt,
+  });
+  assert.equal(Number.isSafeInteger(bill.updatedAt), true);
+  assert.throws(() => createBill('names', ['小李', ' 小李 ']), /姓名不能重复/);
+});
+
+test('rejects unsupported participant modes with a controlled Chinese error', () => {
+  assert.throws(
+    () => createBill('custom', 5),
+    { name: 'Error', message: '参与人模式无效' },
+  );
+});
 
 test('creates letter-named participants', () => {
   assert.deepEqual(

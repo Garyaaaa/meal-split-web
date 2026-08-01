@@ -30,6 +30,26 @@ function createNamedParticipants(names) {
   }));
 }
 
+function createBill(mode, input) {
+  let participants;
+  if (mode === 'letters') {
+    participants = createLetterParticipants(input);
+  } else if (mode === 'names') {
+    participants = createNamedParticipants(input);
+  } else {
+    throw new Error('参与人模式无效');
+  }
+
+  return {
+    id: 'local-draft',
+    participantMode: mode,
+    participants,
+    expenses: [],
+    collectorId: null,
+    updatedAt: Date.now(),
+  };
+}
+
 function reconcileParticipants(bill, names) {
   const namedParticipants = createNamedParticipants(names);
   const oldParticipants = bill.participants;
@@ -81,6 +101,7 @@ function reconcileParticipants(bill, names) {
 }
 
 module.exports = {
+  createBill,
   createLetterParticipants,
   createNamedParticipants,
   reconcileParticipants,

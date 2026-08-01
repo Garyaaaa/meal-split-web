@@ -1,0 +1,108 @@
+<view class="page-shell start-page">
+  <view wx:if="{{hasDraft}}" class="card draft-card">
+    <view class="draft-copy">
+      <text class="draft-title">上次的账单还在</text>
+      <text class="draft-description">继续补充消费，之前的记录都会保留。</text>
+    </view>
+    <button class="draft-link" bindtap="continueDraft">继续记账</button>
+  </view>
+
+  <view class="hero">
+    <text wx:if="{{editing}}" class="eyebrow">调整参与人</text>
+    <text wx:else class="eyebrow">开始新账单</text>
+    <text wx:if="{{mode === 'letters'}}" class="headline">先选有几个人</text>
+    <text wx:else class="headline">写下大家的名字</text>
+    <text class="hero-description">稍后可以继续调整，也不需要登录。</text>
+  </view>
+
+  <view class="segmented" aria-role="group" aria-label="参与人命名方式">
+    <button
+      class="segment {{mode === 'letters' ? 'segment-active' : ''}}"
+      data-mode="letters"
+      bindtap="chooseMode"
+    >快速字母</button>
+    <button
+      class="segment {{mode === 'names' ? 'segment-active' : ''}}"
+      data-mode="names"
+      bindtap="chooseMode"
+    >输入姓名</button>
+  </view>
+
+  <view wx:if="{{mode === 'letters'}}" class="card setup-card letter-card">
+    <view class="count-row">
+      <view>
+        <text class="section-label">参与人数</text>
+        <text class="count-caption">2–20 人</text>
+      </view>
+      <view class="stepper">
+        <button
+          class="stepper-button"
+          data-delta="-1"
+          bindtap="changeCount"
+          disabled="{{count === 2}}"
+          aria-label="减少一人"
+        >−</button>
+        <text class="count-value">{{count}}</text>
+        <button
+          class="stepper-button"
+          data-delta="1"
+          bindtap="changeCount"
+          disabled="{{count >= 20}}"
+          aria-label="增加一人"
+        >＋</button>
+      </view>
+    </view>
+
+    <view class="letter-preview">
+      <view
+        wx:for="{{letterChips}}"
+        wx:key="*this"
+        class="letter-chip"
+      >{{item}}</view>
+    </view>
+  </view>
+
+  <view wx:else class="card setup-card names-card">
+    <view class="names-heading">
+      <text class="section-label">参与人</text>
+      <text class="count-caption">{{count}} / 20</text>
+    </view>
+
+    <view
+      wx:for="{{names}}"
+      wx:key="index"
+      class="name-row"
+    >
+      <text class="name-index">{{index + 1}}</text>
+      <input
+        class="name-input"
+        value="{{item}}"
+        data-index="{{index}}"
+        bindinput="updateName"
+        maxlength="20"
+        placeholder="输入姓名"
+        placeholder-class="input-placeholder"
+      />
+      <button
+        class="delete-button"
+        data-index="{{index}}"
+        bindtap="removeName"
+        disabled="{{count === 2}}"
+        aria-label="删除第 {{index + 1}} 位参与人"
+      >删除</button>
+    </view>
+
+    <button
+      wx:if="{{count !== 20}}"
+      class="add-button"
+      bindtap="addName"
+    >＋ 添加参与人</button>
+  </view>
+
+  <text wx:if="{{error}}" class="form-error">{{error}}</text>
+
+  <button class="primary-button submit-button" bindtap="submit">
+    <text wx:if="{{editing}}">保存参与人</text>
+    <text wx:else>开始记账</text>
+  </button>
+</view>
