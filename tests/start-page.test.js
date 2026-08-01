@@ -5,10 +5,13 @@ const path = require('node:path');
 
 const STORAGE_KEY = 'meal_split_draft';
 const storage = new Map();
-const calls = { navigateTo: [], navigateBack: [] };
+const calls = { navigateTo: [], navigateBack: [], showModal: [] };
 let queuedStorageReads = [];
 let storageReadCount = 0;
 let storageWriteCount = 0;
+let failReads = false;
+let modalThrows = false;
+let navigateThrows = false;
 
 function clone(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
@@ -45,6 +48,9 @@ function rpxValue(declarations, property) {
 global.wx = {
   getStorageSync(key) {
     storageReadCount += 1;
+    if (failReads) {
+      throw new Error('storage unavailable');
+    }
     if (queuedStorageReads.length > 0) {
       return clone(queuedStorageReads.shift());
     }
@@ -58,10 +64,19 @@ global.wx = {
     storage.delete(key);
   },
   navigateTo(options) {
+    if (navigateThrows) {
+      throw new Error('navigation threw');
+    }
     calls.navigateTo.push(options);
   },
   navigateBack(options) {
     calls.navigateBack.push(options);
+  },
+  showModal(options) {
+    if (modalThrows) {
+      throw new Error('modal threw');
+    }
+    calls.showModal.push(options);
   },
 };
 
@@ -103,9 +118,13 @@ function resetHarness() {
   storage.clear();
   calls.navigateTo.length = 0;
   calls.navigateBack.length = 0;
+  calls.showModal.length = 0;
   queuedStorageReads = [];
   storageReadCount = 0;
   storageWriteCount = 0;
+  failReads = false;
+  modalThrows = false;
+  navigateThrows = false;
 }
 
 test('refreshes draft availability when a cached start page becomes visible again', () => {
@@ -276,6 +295,273 @@ test('never recovers an uninitialized edit from a later storage read', () => {
   assert.equal(page.data.editing, true);
   assert.equal(page.data.editInitialized, false);
   assert.equal(page.data.error, '未找到可编辑的账单');
+});
+
+test('existing draft requires confirmation before a new bill can replace it', () => {
+  resetHarness();
+  const original = createDraft({
+    expenses: [{
+      id: 'existing-expense',
+      amountCents: 1800,
+      payerId: 'p1',
+      splitMode: 'all',
+      participantIds: [],
+      note: '晚餐',
+    }],
+  });
+  persist(original);
+  const page = createPage();
+  page.onLoad({});
+
+  page.submit();
+
+  assert.equal(calls.showModal.length, 1);
+  assert.equal(calls.showModal[0].title, '开始新账单？');
+  assert.match(calls.showModal[0].content, /当前.*账单.*替换|当前.*账单.*清除/);
+  assert.equal(calls.showModal[0].confirmText, '替换并开始');
+  assert.equal(storageWriteCount, 0);
+  assert.deepEqual(storage.get(STORAGE_KEY).bill, original);
+  assert.equal(calls.navigateTo.length, 0);
+});
+
+test('replacement cancellation preserves the draft and releases the modal guard', () => {
+  resetHarness();
+  const original = createDraft();
+  persist(original);
+  const page = createPage();
+  page.onLoad({});
+  page.submit();
+
+  calls.showModal[0].success({ confirm: false, cancel: true });
+
+  assert.deepEqual(storage.get(STORAGE_KEY).bill, original);
+  assert.equal(storageWriteCount, 0);
+  assert.equal(calls.navigateTo.length, 0);
+  page.submit();
+  assert.equal(calls.showModal.length, 2);
+});
+
+test('confirmed replacement saves the candidate and navigates exactly once', () => {
+  resetHarness();
+  persist(createDraft());
+  const page = createPage();
+  page.onLoad({});
+  page.submit();
+  const confirm = calls.showModal[0].success;
+
+  confirm({ confirm: true, cancel: false });
+  confirm({ confirm: true, cancel: false });
+
+  const saved = storage.get(STORAGE_KEY).bill;
+  assert.equal(saved.participantMode, 'letters');
+  assert.deepEqual(
+    saved.participants.map((participant) => participant.displayName),
+    ['A', 'B', 'C', 'D', 'E'],
+  );
+  assert.deepEqual(saved.expenses, []);
+  assert.equal(storageWriteCount, 1);
+  assert.equal(calls.navigateTo.length, 1);
+  assert.equal(calls.navigateTo[0].url, '/pages/ledger/ledger');
+});
+
+test('rapid repeated submit opens only one replacement modal', () => {
+  resetHarness();
+  persist(createDraft());
+  const page = createPage();
+  page.onLoad({});
+
+  page.submit();
+  page.submit();
+  page.submit();
+
+  assert.equal(calls.showModal.length, 1);
+  assert.equal(storageWriteCount, 0);
+  assert.equal(calls.navigateTo.length, 0);
+});
+
+test('confirmation refuses to overwrite a draft changed after the modal opened', () => {
+  resetHarness();
+  persist(createDraft());
+  const page = createPage();
+  page.onLoad({});
+  page.submit();
+  const replacement = createDraft({ updatedAt: 99 });
+  persist(replacement);
+
+  calls.showModal[0].success({ confirm: true, cancel: false });
+
+  assert.deepEqual(storage.get(STORAGE_KEY).bill, replacement);
+  assert.equal(storageWriteCount, 0);
+  assert.equal(calls.navigateTo.length, 0);
+  assert.equal(page.data.error, '账单已更新，请重新操作');
+});
+
+test('confirmation treats a missing draft as updated and refreshes availability', () => {
+  resetHarness();
+  persist(createDraft());
+  const page = createPage();
+  page.onLoad({});
+  page.submit();
+  storage.delete(STORAGE_KEY);
+
+  calls.showModal[0].success({ confirm: true, cancel: false });
+
+  assert.equal(storage.has(STORAGE_KEY), false);
+  assert.equal(storageWriteCount, 0);
+  assert.equal(calls.navigateTo.length, 0);
+  assert.equal(page.data.hasDraft, false);
+  assert.equal(page.data.error, '账单已更新，请重新操作');
+});
+
+test('confirmation read failure preserves the draft and surfaces a controlled error', () => {
+  resetHarness();
+  const original = createDraft();
+  persist(original);
+  const page = createPage();
+  page.onLoad({});
+  page.submit();
+  failReads = true;
+
+  calls.showModal[0].success({ confirm: true, cancel: false });
+
+  assert.deepEqual(storage.get(STORAGE_KEY).bill, original);
+  assert.equal(storageWriteCount, 0);
+  assert.equal(calls.navigateTo.length, 0);
+  assert.equal(page.data.hasDraft, true);
+  assert.match(page.data.error, /读取账单失败/);
+});
+
+test('onShow invalidates a stale confirmation callback', () => {
+  resetHarness();
+  persist(createDraft());
+  const page = createPage();
+  page.onLoad({});
+  page.submit();
+  const oldModal = calls.showModal[0];
+  const replacement = createDraft({ updatedAt: 100 });
+  persist(replacement);
+
+  page.onShow();
+  oldModal.success({ confirm: true, cancel: false });
+
+  assert.deepEqual(storage.get(STORAGE_KEY).bill, replacement);
+  assert.equal(storageWriteCount, 0);
+  assert.equal(calls.navigateTo.length, 0);
+  assert.equal(page.data.hasDraft, true);
+});
+
+test('submit storage read failure cannot overwrite or prompt', () => {
+  resetHarness();
+  const page = createPage();
+  page.onLoad({});
+  const recovered = createDraft({ updatedAt: 101 });
+  persist(recovered);
+  failReads = true;
+
+  page.submit();
+
+  assert.deepEqual(storage.get(STORAGE_KEY).bill, recovered);
+  assert.equal(storageWriteCount, 0);
+  assert.equal(calls.showModal.length, 0);
+  assert.equal(calls.navigateTo.length, 0);
+  assert.match(page.data.error, /读取账单失败/);
+});
+
+test('new bill saves and navigates immediately when no draft exists', () => {
+  resetHarness();
+  const page = createPage();
+  page.onLoad({});
+
+  page.submit();
+
+  assert.equal(calls.showModal.length, 0);
+  assert.equal(storageWriteCount, 1);
+  assert.equal(storage.get(STORAGE_KEY).bill.participantMode, 'letters');
+  assert.equal(calls.navigateTo.length, 1);
+  assert.equal(calls.navigateTo[0].url, '/pages/ledger/ledger');
+});
+
+test('invalid new-bill names fail before storage read or confirmation', () => {
+  resetHarness();
+  persist(createDraft());
+  const page = createPage();
+  page.onLoad({});
+  page.chooseMode({ currentTarget: { dataset: { mode: 'names' } } });
+  const readsBeforeSubmit = storageReadCount;
+
+  page.submit();
+
+  assert.equal(page.data.error, '姓名不能为空');
+  assert.equal(storageReadCount, readsBeforeSubmit);
+  assert.equal(storageWriteCount, 0);
+  assert.equal(calls.showModal.length, 0);
+  assert.equal(calls.navigateTo.length, 0);
+});
+
+test('edit submit remains separate and never prompts for replacement', () => {
+  resetHarness();
+  persist(createDraft());
+  const page = createPage();
+  page.onLoad({ edit: '1' });
+
+  page.submit();
+
+  assert.equal(calls.showModal.length, 0);
+  assert.equal(storageWriteCount, 1);
+  assert.equal(calls.navigateBack.length, 1);
+  assert.equal(calls.navigateTo.length, 0);
+});
+
+test('modal failures surface an error and release the replacement guard', () => {
+  resetHarness();
+  persist(createDraft());
+  const page = createPage();
+  page.onLoad({});
+  modalThrows = true;
+
+  page.submit();
+
+  assert.match(page.data.error, /打开确认提示失败/);
+  modalThrows = false;
+  page.submit();
+  assert.equal(calls.showModal.length, 1);
+  calls.showModal[0].fail(new Error('modal failed'));
+  assert.match(page.data.error, /打开确认提示失败/);
+  page.submit();
+  assert.equal(calls.showModal.length, 2);
+});
+
+test('confirmed saved draft remains recoverable when navigation fails', () => {
+  resetHarness();
+  persist(createDraft());
+  const page = createPage();
+  page.onLoad({});
+  page.submit();
+  calls.showModal[0].success({ confirm: true, cancel: false });
+  const saved = clone(storage.get(STORAGE_KEY).bill);
+
+  calls.navigateTo[0].fail(new Error('navigation failed'));
+
+  assert.deepEqual(storage.get(STORAGE_KEY).bill, saved);
+  assert.equal(page.data.hasDraft, true);
+  assert.match(page.data.error, /打开账单失败/);
+});
+
+test('synchronous navigation failure keeps the confirmed saved draft recoverable', () => {
+  resetHarness();
+  persist(createDraft());
+  const page = createPage();
+  page.onLoad({});
+  navigateThrows = true;
+  page.submit();
+
+  calls.showModal[0].success({ confirm: true, cancel: false });
+
+  assert.equal(storage.get(STORAGE_KEY).bill.participantMode, 'letters');
+  assert.equal(storageWriteCount, 1);
+  assert.equal(calls.navigateTo.length, 0);
+  assert.equal(page.data.hasDraft, true);
+  assert.match(page.data.error, /打开账单失败/);
 });
 
 test('participant setup controls provide at least 88rpx touch targets', () => {
