@@ -81,6 +81,7 @@ Page({
     participantIds: blankParticipantIds(DEFAULT_COUNT),
     hasDraft: false,
     editing: false,
+    editInitialized: false,
     error: '',
   },
 
@@ -92,6 +93,7 @@ Page({
       this.setData({
         hasDraft: false,
         editing: true,
+        editInitialized: false,
         error: '未找到可编辑的账单',
       });
       return;
@@ -107,6 +109,7 @@ Page({
         participantIds: draft.participants.map((participant) => participant.id),
         hasDraft: false,
         editing: true,
+        editInitialized: true,
         error: '',
       });
       return;
@@ -115,6 +118,7 @@ Page({
     this.setData({
       hasDraft: Boolean(draft),
       editing: false,
+      editInitialized: false,
       error: '',
     });
   },
@@ -204,6 +208,9 @@ Page({
     try {
       let bill;
       if (this.data.editing) {
+        if (!this.data.editInitialized) {
+          throw new Error('未找到可编辑的账单');
+        }
         const draft = store.load();
         if (!draft) {
           throw new Error('未找到可编辑的账单');

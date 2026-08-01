@@ -4,6 +4,9 @@ const assert = require('node:assert/strict');
 const STORAGE_KEY = 'meal_split_draft';
 const storage = new Map();
 const calls = { navigateTo: [], navigateBack: [] };
+let queuedStorageReads = [];
+let storageReadCount = 0;
+let storageWriteCount = 0;
 
 function clone(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
@@ -11,9 +14,14 @@ function clone(value) {
 
 global.wx = {
   getStorageSync(key) {
+    storageReadCount += 1;
+    if (queuedStorageReads.length > 0) {
+      return clone(queuedStorageReads.shift());
+    }
     return clone(storage.get(key));
   },
   setStorageSync(key, value) {
+    storageWriteCount += 1;
     storage.set(key, clone(value));
   },
   removeStorageSync(key) {
@@ -65,6 +73,9 @@ function resetHarness() {
   storage.clear();
   calls.navigateTo.length = 0;
   calls.navigateBack.length = 0;
+  queuedStorageReads = [];
+  storageReadCount = 0;
+  storageWriteCount = 0;
 }
 
 test('refreshes draft availability when a cached start page becomes visible again', () => {
@@ -84,6 +95,7 @@ test('keeps participant identity when deleting a middle name during editing', ()
   persist(createDraft());
   const page = createPage();
   page.onLoad({ edit: '1' });
+  assert.equal(page.data.editInitialized, true);
 
   page.removeName({ currentTarget: { dataset: { index: 1 } } });
   page.submit();
@@ -200,6 +212,7 @@ test('keeps edit intent and blocks submission when the requested draft is unread
   page.onLoad({ edit: '1' });
 
   assert.equal(page.data.editing, true);
+  assert.equal(page.data.editInitialized, false);
   assert.equal(page.data.hasDraft, false);
   assert.equal(page.data.error, '未找到可编辑的账单');
 
@@ -211,4 +224,26 @@ test('keeps edit intent and blocks submission when the requested draft is unread
   assert.equal(storage.has(STORAGE_KEY), false);
   assert.equal(calls.navigateBack.length, 0);
   assert.equal(calls.navigateTo.length, 0);
+});
+
+test('never recovers an uninitialized edit from a later storage read', () => {
+  resetHarness();
+  const recoveredDraft = createDraft();
+  const recoveredEnvelope = { version: 1, bill: recoveredDraft };
+  storage.set(STORAGE_KEY, clone(recoveredEnvelope));
+  queuedStorageReads = [undefined, recoveredEnvelope];
+  const page = createPage();
+
+  page.onLoad({ edit: '1' });
+  page.onShow();
+  page.submit();
+
+  assert.equal(storageReadCount, 1);
+  assert.equal(storageWriteCount, 0);
+  assert.deepEqual(storage.get(STORAGE_KEY), recoveredEnvelope);
+  assert.equal(calls.navigateBack.length, 0);
+  assert.equal(calls.navigateTo.length, 0);
+  assert.equal(page.data.editing, true);
+  assert.equal(page.data.editInitialized, false);
+  assert.equal(page.data.error, '未找到可编辑的账单');
 });
