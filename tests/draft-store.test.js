@@ -24,6 +24,7 @@ function createAppBill(overrides = {}) {
         amountCents: 1200,
         payerId: 'p1',
         splitMode: 'all',
+        participantIds: [],
         note: '',
       },
     ],
@@ -176,6 +177,42 @@ test('rejects duplicate persisted expense IDs', () => {
 
 test('rejects a persisted expense with an invalid split mode', () => {
   const expense = { ...createAppBill().expenses[0], splitMode: 'everyone' };
+  const bill = createAppBill({ expenses: [expense] });
+  const storage = createMemoryStorage({ version: 1, bill });
+
+  assert.equal(createDraftStore(storage).load(), null);
+});
+
+test('rejects an all-participants expense missing participant IDs', () => {
+  const expense = { ...createAppBill().expenses[0] };
+  delete expense.participantIds;
+  const bill = createAppBill({ expenses: [expense] });
+  const storage = createMemoryStorage({ version: 1, bill });
+
+  assert.equal(createDraftStore(storage).load(), null);
+});
+
+test('rejects an all-participants expense with non-array participant IDs', () => {
+  const expense = { ...createAppBill().expenses[0], participantIds: 'p1' };
+  const bill = createAppBill({ expenses: [expense] });
+  const storage = createMemoryStorage({ version: 1, bill });
+
+  assert.equal(createDraftStore(storage).load(), null);
+});
+
+test('rejects an all-participants expense with sparse participant IDs', () => {
+  const expense = { ...createAppBill().expenses[0], participantIds: Array(1) };
+  const bill = createAppBill({ expenses: [expense] });
+  const store = createDraftStore(createMemoryStorage());
+
+  assert.throws(
+    () => store.save(bill),
+    { name: 'Error', message: '账单草稿无效' },
+  );
+});
+
+test('rejects an all-participants expense with nonempty participant IDs', () => {
+  const expense = { ...createAppBill().expenses[0], participantIds: ['p1'] };
   const bill = createAppBill({ expenses: [expense] });
   const storage = createMemoryStorage({ version: 1, bill });
 

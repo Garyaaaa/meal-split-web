@@ -8,6 +8,18 @@ function hasOwn(value, key) {
   return Object.prototype.hasOwnProperty.call(value, key);
 }
 
+function isDenseArray(value) {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+  for (let index = 0; index < value.length; index += 1) {
+    if (!hasOwn(value, index)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function assertDraftBill(bill) {
   assertBill(bill);
 
@@ -38,6 +50,8 @@ function assertDraftBill(bill) {
       || expense.id.trim() === ''
       || expenseIds.has(expense.id)
       || (expense.splitMode !== 'all' && expense.splitMode !== 'selected')
+      || !isDenseArray(expense.participantIds)
+      || (expense.splitMode === 'all' && expense.participantIds.length !== 0)
       || (hasOwn(expense, 'note') && typeof expense.note !== 'string')
     ) {
       throw new Error('账单草稿无效');
