@@ -549,7 +549,8 @@ test('finish cancellation does not clear or navigate and allows retry', () => {
   assert.equal(calls.showModal.length, 1);
   assert.equal(calls.showModal[0].title, '开始一笔新账单？');
   assert.match(calls.showModal[0].content, /当前本地账单将被清除/);
-  assert.equal(calls.showModal[0].confirmText, '清除并开始');
+  assert.equal(calls.showModal[0].confirmText, '清除账单');
+  assert.ok(Array.from(calls.showModal[0].confirmText).length <= 4);
   calls.showModal[0].success({ confirm: false, cancel: true });
   assert.ok(savedBill());
   assert.equal(calls.reLaunch.length, 0);

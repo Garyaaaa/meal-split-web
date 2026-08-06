@@ -467,7 +467,7 @@ Page({
       wx.showModal({
         title: '开始一笔新账单？',
         content: '当前本地账单将被清除，此操作无法撤销。',
-        confirmText: '清除并开始',
+        confirmText: '清除账单',
         confirmColor: '#d94a4a',
         cancelText: '取消',
         success: modalSuccess,

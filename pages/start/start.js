@@ -423,7 +423,7 @@ Page({
       wx.showModal({
         title: '开始新账单？',
         content: '当前未完成的账单将被替换并清除，确认继续吗？',
-        confirmText: '替换并开始',
+        confirmText: '清除账单',
         confirmColor: '#d94a4a',
         cancelText: '取消',
         success: modalSuccess,

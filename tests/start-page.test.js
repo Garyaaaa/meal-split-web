@@ -290,7 +290,8 @@ test('existing draft requires confirmation before a new bill can replace it', ()
   assert.equal(calls.showModal.length, 1);
   assert.equal(calls.showModal[0].title, '开始新账单？');
   assert.match(calls.showModal[0].content, /当前.*账单.*替换|当前.*账单.*清除/);
-  assert.equal(calls.showModal[0].confirmText, '替换并开始');
+  assert.equal(calls.showModal[0].confirmText, '清除账单');
+  assert.ok(Array.from(calls.showModal[0].confirmText).length <= 4);
   assert.equal(storageWriteCount, 0);
   assert.deepEqual(storage.get(STORAGE_KEY).bill, original);
   assert.equal(calls.navigateTo.length, 0);
