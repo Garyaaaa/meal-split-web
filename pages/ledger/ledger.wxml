@@ -45,7 +45,13 @@
     </view>
   </view>
 
-  <view wx:else class="empty-card card">
+  <view
+    wx:else
+    class="empty-card card"
+    bindtap="openNewExpense"
+    aria-role="button"
+    aria-label="还没有消费，点击记一笔"
+  >
     <text class="empty-icon">＋</text>
     <text class="empty-title">还没有消费</text>
     <text class="empty-description">点右上角“记一笔”，把第一笔账记下来。</text>

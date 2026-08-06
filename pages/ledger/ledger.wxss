@@ -172,6 +172,7 @@
   display: flex;
   align-items: center;
   flex-direction: column;
+  min-height: 88rpx;
   padding: 54rpx 34rpx;
   text-align: center;
 }
@@ -283,6 +284,7 @@
 
 @media (max-width: 374px) {
   .add-expense-button,
+  .empty-card,
   .expense-row,
   .expense-delete,
   .participant-button,

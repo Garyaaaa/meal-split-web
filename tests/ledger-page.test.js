@@ -447,6 +447,19 @@ test('failed missing-draft redirect is surfaced instead of failing silently', ()
   assert.match(page.data.pageError, /返回开始页失败/);
 });
 
+test('empty state card opens the same new-expense flow as the header button', () => {
+  const root = path.resolve(__dirname, '..');
+  const ledgerWxml = fs.readFileSync(
+    path.join(root, 'pages/ledger/ledger.wxml'),
+    'utf8',
+  );
+
+  assert.match(
+    ledgerWxml,
+    /<view\b(?=[^>]*wx:else)(?=[^>]*class="empty-card card")(?=[^>]*bindtap="openNewExpense")(?=[^>]*aria-role="button")(?=[^>]*aria-label="还没有消费，点击记一笔")[^>]*>/,
+  );
+});
+
 test('templates bind the editor and isolate delete taps; styles avoid unsupported inset', () => {
   const root = path.resolve(__dirname, '..');
   const ledgerWxml = fs.readFileSync(path.join(root, 'pages/ledger/ledger.wxml'), 'utf8');

@@ -51,6 +51,7 @@ const scopes = [
         compact: true,
         line: true,
       },
+      { className: 'empty-card', normalHeight: ['min-height', 88] },
       { className: 'expense-row', normalHeight: ['min-height', 124] },
       {
         className: 'expense-delete',
