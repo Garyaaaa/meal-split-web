@@ -286,6 +286,57 @@ test('renders the expense editor with radio-backed choice chips', () => {
   assert.match(mount.innerHTML, /segmented-control/);
 });
 
+test('renders the editor save action as a full-width primary button', () => {
+  const { app, mount } = createRenderFixture('en', 'Dinner');
+
+  app.handleClick({
+    target: {
+      dataset: { action: 'open-expense' },
+      closest(selector) {
+        return selector === '[data-action]' ? this : null;
+      },
+    },
+  });
+
+  const form = findOpeningTags(mount.innerHTML, 'form')
+    .find((openingTag) => attributeValue(openingTag.attributes, 'data-action') === 'save-expense');
+  assert.ok(form, 'expected the expense editor form');
+  const formClosingTag = new RegExp('</form\\s*>', 'i').exec(mount.innerHTML.slice(form.end));
+  const formContent = formClosingTag
+    ? mount.innerHTML.slice(form.end, form.end + formClosingTag.index)
+    : '';
+  const submitButton = findOpeningTags(formContent, 'button')
+    .find((openingTag) => attributeValue(openingTag.attributes, 'type') === 'submit');
+  assert.ok(submitButton, 'expected an expense editor submit button');
+  assert.ok(hasClass(submitButton.attributes, 'button'));
+  assert.ok(hasClass(submitButton.attributes, 'primary'));
+  assert.ok(hasClass(submitButton.attributes, 'wide'));
+});
+
+test('renders the editor amount with a visible currency prefix and compatible input name', () => {
+  const { app, mount } = createRenderFixture('en', 'Dinner');
+
+  app.handleClick({
+    target: {
+      dataset: { action: 'open-expense' },
+      closest(selector) {
+        return selector === '[data-action]' ? this : null;
+      },
+    },
+  });
+
+  const amountFields = findElementsWithClass(mount.innerHTML, 'amount-field');
+  assert.equal(amountFields.length, 1, 'expected one amount field');
+  assert.equal(findElementsWithClass(amountFields[0].content, 'amount-prefix').length, 1);
+  assert.match(amountFields[0].content, />\$<\/span>/);
+
+  const amountInputs = findOpeningTags(amountFields[0].content, 'input')
+    .filter((openingTag) => attributeValue(openingTag.attributes, 'name') === 'amount');
+  assert.equal(amountInputs.length, 1, 'expected one named amount input');
+  assert.ok(hasClass(amountInputs[0].attributes, 'amount-input'));
+  assert.doesNotMatch(amountInputs[0].markup, /value="[^"]*\$[^"]*"/);
+});
+
 test('locks the result collector and transfer hierarchy', () => {
   const { app, mount } = createRenderFixture('en', 'Dinner');
 
@@ -316,6 +367,48 @@ test('keeps grapheme clusters intact in collector avatars', () => {
   const avatars = findElementsWithClass(collectorHero.content, 'collector-avatar');
   assert.equal(avatars.length, 1);
   assert.equal(avatars[0].content, '👩‍💻');
+});
+
+test('places a localized finish action in the result top bar and keeps bottom navigation actions', () => {
+  const { app, mount } = createRenderFixture('zh', '晚餐');
+
+  app.navigate('result');
+
+  const topbars = findElementsWithClass(mount.innerHTML, 'result-topbar');
+  assert.equal(topbars.length, 1, 'expected one result top bar');
+  const headingActions = findElementsWithClass(mount.innerHTML, 'result-heading-actions');
+  assert.equal(headingActions.length, 1, 'expected one result heading actions group');
+  const topFinishButton = findOpeningTags(headingActions[0].content, 'button')
+    .find((openingTag) => attributeValue(openingTag.attributes, 'data-action') === 'finish-request');
+  assert.ok(topFinishButton, 'expected a finish action in the result top bar');
+  const topFinishText = /<button[^>]*data-action="finish-request"[^>]*>([\s\S]*?)<\/button>/
+    .exec(headingActions[0].content);
+  assert.ok(topFinishText, 'expected visible text for the top finish action');
+  assert.match(topFinishText[1].trim(), /^(完成|Finish)$/);
+
+  const resultActions = findElementsWithClass(mount.innerHTML, 'result-actions');
+  assert.equal(resultActions.length, 1, 'expected one result actions group');
+  const backButton = findOpeningTags(resultActions[0].content, 'button')
+    .find((openingTag) => attributeValue(openingTag.attributes, 'data-action') === 'back-ledger');
+  assert.ok(backButton, 'expected a bottom back-to-ledger action');
+  assert.ok(hasClass(backButton.attributes, 'button'));
+  assert.ok(hasClass(backButton.attributes, 'quiet'));
+  assert.ok(hasClass(backButton.attributes, 'wide'));
+  assert.match(resultActions[0].content, /返回修改/);
+  assert.match(resultActions[0].content, /data-action="finish-request"/);
+});
+
+test('shows total spending alongside net collection in the collector hero', () => {
+  const { app, mount } = createRenderFixture('en', 'Dinner');
+
+  app.navigate('result');
+
+  const collectorHero = findElementsWithClass(mount.innerHTML, 'collector-hero')[0];
+  const total = findElementsWithClass(collectorHero.content, 'collector-hero-total');
+  assert.equal(total.length, 1, 'expected total spending in the collector hero');
+  assert.match(total[0].content, /Total spent/);
+  assert.match(total[0].content, /\$86\.00/);
+  assert.match(collectorHero.content, /class="collector-hero-amount"[^>]*>\$43\.00<\/strong>/);
 });
 
 test('locks the refreshed stylesheet tokens and entry theme color', () => {

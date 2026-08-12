@@ -454,7 +454,10 @@
           <div class="modal-heading"><h2 id="expense-title">${escapeHtml(t(editor.id ? 'expense.edit' : 'expense.new'))}</h2><button type="button" class="icon-button" data-action="close-editor" aria-label="${escapeHtml(t('common.close'))}">×</button></div>
           <form data-action="save-expense">
             <label for="expense-amount">${escapeHtml(t('expense.amount'))}</label>
-            <input id="expense-amount" name="amount" type="text" inputmode="decimal" value="${escapeHtml(editor.amount)}" placeholder="${escapeHtml(t('expense.amountPlaceholder'))}" required>
+            <div class="amount-field">
+              <span class="amount-prefix" aria-hidden="true">$</span>
+              <input class="amount-input" id="expense-amount" name="amount" type="text" inputmode="decimal" value="${escapeHtml(editor.amount)}" placeholder="${escapeHtml(t('expense.amountPlaceholder'))}" required>
+            </div>
             <fieldset><legend>${escapeHtml(t('expense.payer'))}</legend><div class="choice-grid payer-options">${payerOptions}</div></fieldset>
             <fieldset><legend>${escapeHtml(t('expense.splitMode'))}</legend>
               <div class="segmented-control">
@@ -466,7 +469,7 @@
             <label for="expense-note">${escapeHtml(t('expense.note'))}</label>
             <textarea id="expense-note" name="note" rows="2" placeholder="${escapeHtml(t('expense.notePlaceholder'))}">${escapeHtml(editor.note)}</textarea>
             ${renderMessages()}
-            <div class="button-row"><button type="button" class="button quiet" data-action="close-editor">${escapeHtml(t('common.cancel'))}</button><button type="submit" class="button primary">${escapeHtml(t('expense.save'))}</button></div>
+            <div class="button-row"><button type="button" class="button quiet" data-action="close-editor">${escapeHtml(t('common.cancel'))}</button><button type="submit" class="button primary wide">${escapeHtml(t('expense.save'))}</button></div>
           </form>
         </section>
       </div>`;
@@ -523,17 +526,18 @@
             <span class="collector-avatar">${escapeHtml(avatarCharacter(selectedCollector.displayName))}</span>
             <strong class="collector-hero-name">${escapeHtml(selectedCollector.displayName)}</strong>
             <span class="collector-hero-meta">${escapeHtml(t('result.collectorHint'))} · ${escapeHtml(t('result.peopleSummary', { count: state.bill.participants.length }))}</span>
+            <span class="collector-hero-total">${escapeHtml(t('result.total'))} · ${formatAmount(result.totalCents)}</span>
             <strong class="collector-hero-amount">${formatAmount(result.collectorAmountCents)}</strong>
           </div>
           <div class="collector-choices">${eligibleCollectors}</div>
         </section>` : '';
       return `<section class="screen" data-screen="result">
-        <div class="screen-heading"><div><p class="kicker">${escapeHtml(t('result.title'))}</p><h1>${formatAmount(result.totalCents)}</h1></div><button type="button" class="button quiet" data-action="back-ledger">← ${escapeHtml(t('result.backToLedger'))}</button></div>
+        <div class="result-topbar screen-heading"><div><p class="kicker">${escapeHtml(t('result.title'))}</p><h1>${formatAmount(result.totalCents)}</h1></div><div class="result-heading-actions"><button type="button" class="button quiet" data-action="finish-request">${escapeHtml(t('common.finish'))}</button></div></div>
         ${renderMessages()}
         <div class="member-list card">${memberRows}</div>
         ${collectorSection}
         <section class="card transfer-card"><div class="section-heading"><h2>${escapeHtml(t('result.transfers'))}</h2></div><div class="transfer-list">${transferRows || `<p class="empty-copy">${escapeHtml(t('result.noTransfers'))}</p>`}</div></section>
-        <div class="result-actions"><button type="button" class="button primary wide" data-action="copy-summary">${escapeHtml(t('result.copySummary'))}</button>${state.copyFallbackText ? `<p class="message error">${escapeHtml(t('result.copyFailed'))}</p><textarea class="copy-fallback" aria-label="${escapeHtml(t('result.copySummary'))}" readonly>${escapeHtml(state.copyFallbackText)}</textarea>` : ''}<button type="button" class="button quiet wide" data-action="finish-request">${escapeHtml(t('result.finish'))}</button></div>
+        <div class="result-actions"><button type="button" class="button primary wide" data-action="copy-summary">${escapeHtml(t('result.copySummary'))}</button>${state.copyFallbackText ? `<p class="message error">${escapeHtml(t('result.copyFailed'))}</p><textarea class="copy-fallback" aria-label="${escapeHtml(t('result.copySummary'))}" readonly>${escapeHtml(state.copyFallbackText)}</textarea>` : ''}<button type="button" class="button quiet wide" data-action="back-ledger">${escapeHtml(t('result.backToLedger'))}</button><button type="button" class="button quiet wide" data-action="finish-request">${escapeHtml(t('result.finish'))}</button></div>
       </section>`;
     }
 
