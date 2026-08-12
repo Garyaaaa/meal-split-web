@@ -93,6 +93,79 @@
       render();
     }
 
+    function createExpense(input) {
+      const amountCents = root.MealSplitMoney.parseYuanToCents(input.amount);
+      if (!amountCents) {
+        state.error = t('error.invalidAmount');
+        render();
+        return null;
+      }
+      if (!state.bill || !state.bill.participants.some((participant) => participant.id === input.payerId)) {
+        state.error = t('error.invalidPayer');
+        render();
+        return null;
+      }
+      const splitMode = input.splitMode === 'selected' ? 'selected' : 'all';
+      const participantIds = splitMode === 'selected'
+        ? state.bill.participants
+          .map((participant) => participant.id)
+          .filter((id) => Array.isArray(input.participantIds) && input.participantIds.includes(id))
+        : [];
+      if (splitMode === 'selected' && participantIds.length === 0) {
+        state.error = t('error.emptySelected');
+        render();
+        return null;
+      }
+      return {
+        id: input.id || `expense-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        amountCents,
+        payerId: input.payerId,
+        splitMode,
+        participantIds,
+        ...(String(input.note || '').trim() ? { note: String(input.note).trim() } : {}),
+      };
+    }
+
+    function addExpense(input) {
+      if (!state.bill) {
+        return false;
+      }
+      const expense = createExpense(input);
+      if (!expense) {
+        return false;
+      }
+      const nextBill = { ...state.bill, expenses: [...state.bill.expenses, expense], updatedAt: Date.now() };
+      return saveBill(nextBill);
+    }
+
+    function editExpense(expenseId, input) {
+      if (!state.bill || !state.bill.expenses.some((expense) => expense.id === expenseId)) {
+        return false;
+      }
+      const expense = createExpense({ ...input, id: expenseId });
+      if (!expense) {
+        return false;
+      }
+      const nextBill = {
+        ...state.bill,
+        expenses: state.bill.expenses.map((current) => current.id === expenseId ? expense : current),
+        updatedAt: Date.now(),
+      };
+      return saveBill(nextBill);
+    }
+
+    function deleteExpense(expenseId) {
+      if (!state.bill || !state.bill.expenses.some((expense) => expense.id === expenseId)) {
+        return false;
+      }
+      const nextBill = {
+        ...state.bill,
+        expenses: state.bill.expenses.filter((expense) => expense.id !== expenseId),
+        updatedAt: Date.now(),
+      };
+      return saveBill(nextBill);
+    }
+
     function render() {
       if (!document || typeof document.getElementById !== 'function') {
         return;
@@ -127,6 +200,9 @@
       setLanguage,
       createBill,
       navigate,
+      addExpense,
+      editExpense,
+      deleteExpense,
       render,
     };
   }
