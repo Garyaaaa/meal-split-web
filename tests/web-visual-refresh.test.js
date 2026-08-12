@@ -103,6 +103,13 @@ function hasClass(attributes, className) {
   return classTokens(attributeValue(attributes, 'class')).includes(className);
 }
 
+function extractCssRule(styles, selector) {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = styles.match(new RegExp(`${escapedSelector}\\s*\\{([^}]*)\\}`, 'm'));
+  assert.ok(match, `expected CSS rule for ${selector}`);
+  return match[1];
+}
+
 function findOpeningTags(markup, tagName = '[a-z][\\w-]*') {
   const openingTagPattern = new RegExp(`<(${tagName})([^>]*)>`, 'gi');
   return [...markup.matchAll(openingTagPattern)].map((match) => ({
@@ -433,4 +440,22 @@ test('locks the refreshed stylesheet tokens and entry theme color', () => {
     .find((meta) => attributeValue(meta.attributes, 'name') === 'theme-color');
   assert.ok(themeColorMeta, 'expected a theme-color meta tag');
   assert.equal(attributeValue(themeColorMeta.attributes, 'content'), '#f5f5f7');
+});
+
+test('locks responsive wrapping rules for members, choices, and amounts', () => {
+  const styles = fs.readFileSync(path.join(root, 'web/styles.css'), 'utf8');
+  const memberRowRule = extractCssRule(styles, '.member-row');
+  const choiceLabelRule = extractCssRule(styles, '.choice-chip > span');
+
+  assert.match(memberRowRule, /(?:^|;)\s*display\s*:\s*(?:flex|grid)\s*(?:;|$)/i);
+  assert.match(choiceLabelRule, /(?:^|;)\s*overflow-wrap\s*:\s*anywhere\s*(?:;|$)/i);
+
+  for (const selector of ['.total-amount', '.expense-amount', '.collector-hero-amount', '.transfer-amount']) {
+    const rule = extractCssRule(styles, selector);
+    assert.match(rule, /(?:^|;)\s*overflow-wrap\s*:\s*anywhere\s*(?:;|$)/i);
+    assert.doesNotMatch(rule, /(?:^|;)\s*white-space\s*:\s*nowrap\s*(?:;|$)/i);
+  }
+
+  const expenseAmountRule = extractCssRule(styles, '.expense-amount');
+  assert.match(expenseAmountRule, /(?:^|;)\s*white-space\s*:\s*normal\s*(?:;|$)/i);
 });

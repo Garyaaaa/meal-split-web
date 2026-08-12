@@ -327,6 +327,8 @@ textarea {
   border-radius: 999px;
   background: var(--card);
   text-align: center;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .segmented-control .choice-chip {
@@ -544,7 +546,8 @@ textarea {
   font-size: clamp(1.75rem, 8vw, 2.5rem);
   line-height: 1;
   text-align: right;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .expense-section-heading {
@@ -626,7 +629,8 @@ textarea {
   font-size: 1rem;
   line-height: 1.35;
   text-align: right;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .row-actions {
@@ -643,6 +647,8 @@ textarea {
 }
 
 .member-row {
+  display: flex;
+  gap: 12px;
   justify-content: space-between;
   align-items: center;
   min-width: 0;
@@ -726,7 +732,9 @@ textarea {
   margin-top: 6px;
   font-size: clamp(1.8rem, 8vw, 2.5rem);
   line-height: 1;
-  white-space: nowrap;
+  text-align: right;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .collector-choices {
@@ -805,7 +813,8 @@ textarea {
 .transfer-amount {
   color: var(--ink);
   text-align: right;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .copy-fallback {
