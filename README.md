@@ -1,98 +1,116 @@
-# 吃饭分账
+# Meal Split
 
-一个面向聚餐、旅行和临时活动的微信小程序：在手机上快速记录谁付了钱、哪些人承担，再生成可以直接照着转账的结算结果。
+> A small, bilingual, browser-only tool for splitting shared expenses.
 
-## 能做什么
+一个可以直接在浏览器中使用的多人分账工具，支持中文和 English。适合聚餐、旅行、合租和临时活动。
 
-- 支持 2–20 位参与人，可用 A–T 快速代称，也可输入中文、英文或混合姓名。
-- 支持新增、编辑和删除消费，记录金额、付款人和备注。
-- 每笔消费默认全员均摊，也可只选部分人承担；因此既能记录一人私享，也能处理各笔所选承担人不同的非均匀账单，每笔内部仍由所选成员等额承担。
-- 全程按分计算，除不尽的余数按参与人顺序分配，保证总金额严格守恒。
-- 在净额为正的债权人中，自动选择实际付款总额（`paidCents`）最高的人作为主收款人；付款总额相同时按参与人顺序决定。存在多位债权人时，会同时生成“欠款人 → 主收款人”和“主收款人 → 其他债权人”的完整路线。
-- 可在所有净应收成员之间更换主收款人，并复制当前路线的群聊结算文案。
-- 自动保存本地草稿，重新打开后可继续新增、修改或删除。
+## Try it online / 在线试用
 
-本项目完全本地运行：**无服务器、无账号、无登录、无付费 API、无语音功能**，也不请求联系人、位置或支付权限。
+The GitHub Pages link will be added here after the public repository is created.
 
-## 运行要求
+仓库创建并启用 GitHub Pages 后，会在这里补充在线试用链接。
 
-- 微信开发者工具
-- Node.js，需支持内置的 `node:test`
+## Features / 功能
 
-自动化测试不需要安装第三方依赖：
+- Chinese and English UI with automatic browser-language detection / 中文与 English 双语界面，并根据浏览器语言自动选择
+- Works on phones and desktop browsers / 支持手机和桌面浏览器
+- 2–20 participants, letter labels or custom names / 支持 2–20 人，可用字母或自定义姓名
+- Add, edit, and delete expenses / 新增、编辑和删除消费
+- Split each expense among everyone or selected participants / 每笔消费可全员均摊或指定承担人
+- Exact cent-based arithmetic with conserved totals / 以分为单位计算，金额严格守恒
+- Clear settlement routes and a changeable main collector / 生成清晰的转账路线，并可更换主收款人
+- `$` amount display with no currency conversion / 使用 `$` 显示金额，不做货币选择或汇率换算
+- Local browser drafts and clipboard sharing / 浏览器本地保存草稿，支持复制结算文案
+- No account, server, analytics, ads, or third-party API / 无账号、服务器、统计、广告或第三方 API
+
+The `$` sign is only a display convention. This app does not identify currencies or convert exchange rates.
+
+`$` 只是界面显示符号。本项目不会识别货币，也不会进行汇率换算。
+
+## How to use / 使用方法
+
+1. Choose the number of participants, then use letters or enter names.
+2. Add each expense, choose who paid, and choose who shares it.
+3. Open the settlement page, review the routes, and copy the summary if useful.
+4. Finish the bill when you no longer need the local draft.
+
+1. 选择参与人数，然后使用字母或输入姓名。
+2. 逐笔添加消费，选择付款人和承担人。
+3. 打开结算页，检查转账路线，需要时复制结算文案。
+4. 不再需要当前草稿时，可以完成并清除账单。
+
+## Run locally / 本地运行
+
+You only need a modern browser and Node.js with built-in `node:test` support.
+
+只需要现代浏览器，以及支持内置 `node:test` 的 Node.js。
+
+```bash
+python3 -m http.server 4173
+```
+
+Then open <http://localhost:4173/>. The app has no build step and no third-party dependencies.
+
+然后打开 <http://localhost:4173/>。项目不需要构建步骤，也没有第三方依赖。
+
+Run the automated tests:
 
 ```bash
 npm test
 ```
 
-最近一次完整自动化验收结果：`151` 项通过、`0` 项失败。覆盖金额解析、均摊与指定承担、两组确认算例、多债权人路线、本地持久化、成员编辑保护、损坏草稿降级、复制/返回/完成操作安全，以及标准与窄屏触控尺寸的静态检查。
+## Privacy / 隐私
 
-## 导入微信开发者工具
+All participants, expenses, and settlement choices stay in this browser's `localStorage`. Nothing is uploaded. Clipboard access happens only after the user asks to copy the summary. If automatic clipboard access is unavailable, the app shows text for manual copying.
 
-1. 打开微信开发者工具，选择“导入项目”，项目目录选择本仓库根目录（即包含 `app.json` 和 `project.config.json` 的目录）。
-2. 当前 `project.config.json` 使用 `touristappid`，可用于本地预览；准备发布时请替换为已注册小程序的 AppID。
-3. 当前基础库配置为 `trial`。发布前请在开发者工具中选择并验证一个稳定基础库版本，不要直接沿用试验版配置，也不要在没有兼容性证据时猜测版本号。
+参与人、消费和结算选择只保存在当前浏览器的 `localStorage` 中，不会上传。只有用户主动点击复制时才会尝试写入剪贴板；如果浏览器不允许自动复制，页面会显示可手动复制的文字。
 
-## 三步使用
+Clearing a finished bill removes the local draft and cannot be undone by the app.
 
-1. **参与人**：选择人数并使用字母代称，或切换到姓名模式输入参与人。
-2. **消费**：点“记一笔”，填写金额和付款人；默认全员均摊，也可选择指定承担人形成部分承担或私人消费。
-3. **结果**：查看主收款人与逐笔转账路线；需要时更换主收款人，再复制群聊结算文案。
+完成并清除账单会删除本地草稿，应用本身无法恢复。
 
-## 数据与隐私
-
-- 参与人、消费和收款人选择仅保存在微信小程序本地存储中，不会上传。
-- 只有用户主动点“复制群聊结算文案”时，当前姓名、金额和转账路线才会写入系统剪贴板；系统或其他应用可能在内容被覆盖前读取剪贴板，请按需复制并及时覆盖敏感内容。
-- 小程序没有后端、云函数、网络域名或第三方数据服务。
-- 结算页点“完成”，确认后会清除当前本地草稿并返回开始页。
-- 调试时也可在微信开发者工具的 Storage 面板中删除 `meal_split_draft`；清除后无法恢复，请先确认不再需要当前账单。
-
-## 算术示例
-
-以下都按参与人 A、B、C、D、E 的顺序计算。
-
-### 示例一：¥398 + ¥60 + C 私享 ¥10
-
-- A 支付 ¥398，全员均摊。
-- B 支付 ¥60，全员均摊。
-- B 再支付 ¥10，仅 C 承担。
-- 总消费为 ¥468.00；A 为主收款人，最终净收 ¥306.40。
-- 转账结果：B → A `¥21.60`，C → A `¥101.60`，D → A `¥91.60`，E → A `¥91.60`。
-
-### 示例二：¥390 + ¥60 + A/B/C 承担 ¥50
-
-- A 支付 ¥390，全员均摊。
-- B 支付 ¥60，全员均摊。
-- C 再支付 ¥50，由 A、B、C 承担；余下 2 分按参与人顺序分给 A、B。
-- 总消费为 ¥500.00；A 为主收款人，最终净收 ¥283.33。
-- 转账结果：B → A `¥46.67`，C → A `¥56.66`，D → A `¥90.00`，E → A `¥90.00`。
-
-## 项目结构
+## Project structure / 项目结构
 
 ```text
-app.*                         小程序入口与全局样式
-pages/start/                  参与人设置与草稿入口
-pages/ledger/                 消费清单和账单编辑流程
-pages/result/                 收款人、转账路线和完成流程
-components/expense-editor/    消费新增/编辑组件
-domain/participants.js        参与人创建、校验与编辑保护
-services/settlement.js        分账计算和收款路线
-services/draft-store.js       本地草稿读写与校验
-services/share.js             群聊结算文案
-utils/money.js                元/分解析与格式化
-tests/                        Node.js 自动化回归测试
+index.html                 Static Web entry point / Web 入口
+web/app.js                 UI state and event handling / 页面状态与交互
+web/i18n.js                Chinese and English messages / 双语文案
+web/storage.js             Browser storage adapter / 浏览器存储适配
+web/clipboard.js           Clipboard fallback / 剪贴板降级方案
+web/styles.css             Responsive accessible styles / 响应式与可访问样式
+domain/                    Participant domain rules / 参与人领域逻辑
+services/settlement.js     Settlement calculation / 分账计算
+services/share.js          Share summary text / 结算文案
+utils/money.js             Cent-based money helpers / 金额处理
+tests/                     Node.js regression tests / 自动化回归测试
 ```
 
-## 发布前人工检查（尚未完成）
+This public version is a standalone Web app. It is not a WeChat mini-program and does not require WeChat.
 
-当前环境没有微信开发者工具，因此**原生编译、真机行为和视觉矩阵仍待人工验证，不能视为已经通过**。发布前请逐项完成并记录机型、基础库与结果：
+这个公开版本是独立 Web 应用，不是微信小程序，也不需要微信。
 
-- [ ] 在微信开发者工具中导入并原生编译，确认无 WXML、WXSS、JSON、组件注册或基础库兼容错误。
-- [ ] 检查窄/宽设备、顶部与底部安全区，并验证 20 人时姓名列表、字母预览、付款人/承担人按钮的换行与滚动。
-- [ ] 在真机上确认所有按钮和输入区易于触达，并用系统读屏验证命名方式、付款人、承担方式和主收款人的选中/禁用状态能被正确播报。
-- [ ] 使用长姓名和大金额检查开始页、账单页、编辑器和结果页没有遮挡、截断歧义或横向溢出。
-- [ ] 真机走通新增、编辑、删除消费，并杀进程重开，确认草稿仍在。
-- [ ] 分别录入上面两组算例，逐项核对总额、主收款人和每笔转账金额。
-- [ ] 验证复制群聊文案、返回修改以及切换主收款人后的文案和路线同步更新。
-- [ ] 在 Storage 中放入损坏的 `meal_split_draft`，确认安全返回开始页且不暴露旧结算操作。
-- [ ] 完成确认先测试取消不清除，再确认完成，验证草稿被清除且回到开始页。
+## Feedback and contributions / 反馈与贡献
+
+Please open a GitHub issue with:
+
+- what you were trying to do;
+- what you expected;
+- what happened instead;
+- browser and screen size, if the issue is visual.
+
+欢迎通过 GitHub Issue 提交建议，并尽量说明：
+
+- 你想完成什么；
+- 预期结果是什么；
+- 实际发生了什么；
+- 如果是界面问题，请附浏览器和屏幕尺寸。
+
+Small pull requests are welcome. Please keep the app dependency-free and preserve the cent-based settlement invariants.
+
+欢迎小型 Pull Request。请尽量保持项目无第三方依赖，并保留以分为单位、总额守恒的分账规则。
+
+## License / 许可证
+
+Released under the [MIT License](LICENSE).
+
+本项目采用 [MIT License](LICENSE) 开源。

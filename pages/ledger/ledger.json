@@ -1,6 +1,0 @@
-{
-  "navigationBarTitleText": "今天的账单",
-  "usingComponents": {
-    "expense-editor": "/components/expense-editor/expense-editor"
-  }
-}

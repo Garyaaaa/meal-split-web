@@ -1,2 +1,9 @@
 .superpowers/
 .worktrees/
+.DS_Store
+project.private.config.json
+node_modules/
+dist/
+build/
+.idea/
+.vscode/
