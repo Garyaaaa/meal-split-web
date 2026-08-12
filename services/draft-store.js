@@ -1,4 +1,10 @@
-const { assertBill } = require('./settlement');
+(function createDraftStoreModule(root) {
+function getAssertBill() {
+  if (typeof module !== 'undefined' && module.exports) {
+    return require('./settlement').assertBill;
+  }
+  return root.MealSplitSettlement.assertBill;
+}
 
 const STORAGE_KEY = 'meal_split_draft';
 const VERSION = 1;
@@ -21,7 +27,7 @@ function isDenseArray(value) {
 }
 
 function assertDraftBill(bill) {
-  assertBill(bill);
+  getAssertBill()(bill);
 
   if (
     !PERSISTENCE_FIELDS.every((field) => hasOwn(bill, field))
@@ -87,4 +93,11 @@ function createDraftStore(storage) {
   };
 }
 
-module.exports = { STORAGE_KEY, createDraftStore };
+const draftStoreApi = { STORAGE_KEY, createDraftStore };
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = draftStoreApi;
+} else {
+  root.MealSplitDraftStore = draftStoreApi;
+}
+})(typeof globalThis !== 'undefined' ? globalThis : this);
