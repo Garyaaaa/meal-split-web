@@ -390,6 +390,25 @@
       }
     }
 
+    function handleKeydown(event) {
+      if (!event || event.key !== 'Escape') {
+        return;
+      }
+      if (state.editor) {
+        state.editor = null;
+        state.error = '';
+        if (typeof event.preventDefault === 'function') {
+          event.preventDefault();
+        }
+        render();
+      } else if (state.confirm) {
+        if (typeof event.preventDefault === 'function') {
+          event.preventDefault();
+        }
+        resolveConfirm(false);
+      }
+    }
+
     function renderMessages() {
       return `${state.error ? `<p role="alert" class="message error">${escapeHtml(state.error)}</p>` : ''}
         ${state.status ? `<p role="status" class="message success">${escapeHtml(state.status)}</p>` : ''}`;
@@ -456,7 +475,7 @@
             <label for="expense-amount">${escapeHtml(t('expense.amount'))}</label>
             <div class="amount-field">
               <span class="amount-prefix" aria-hidden="true">$</span>
-              <input class="amount-input" id="expense-amount" name="amount" type="text" inputmode="decimal" value="${escapeHtml(editor.amount)}" placeholder="${escapeHtml(t('expense.amountPlaceholder'))}" required>
+              <input class="amount-input" id="expense-amount" name="amount" type="text" inputmode="decimal" value="${escapeHtml(editor.amount)}" placeholder="${escapeHtml(t('expense.amountPlaceholder'))}" autofocus required>
             </div>
             <fieldset><legend>${escapeHtml(t('expense.payer'))}</legend><div class="choice-grid payer-options">${payerOptions}</div></fieldset>
             <fieldset><legend>${escapeHtml(t('expense.splitMode'))}</legend>
@@ -546,11 +565,37 @@
         return '';
       }
       const messageKey = state.confirm.kind === 'delete' ? 'expense.deleteConfirm' : state.confirm.kind === 'finish' ? 'result.finishConfirm' : 'result.finishConfirm';
-      return `<div class="overlay" role="presentation"><section class="modal card confirm-modal" role="dialog" aria-modal="true"><h2>${escapeHtml(t('common.confirm'))}</h2><p>${escapeHtml(t(messageKey))}</p><div class="button-row"><button type="button" class="button quiet" data-action="confirm" data-confirm="no">${escapeHtml(t('common.cancel'))}</button><button type="button" class="button primary" data-action="confirm" data-confirm="yes">${escapeHtml(t('common.confirm'))}</button></div></section></div>`;
+      return `<div class="overlay" role="presentation"><section class="modal card confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><h2 id="confirm-title">${escapeHtml(t('common.confirm'))}</h2><p>${escapeHtml(t(messageKey))}</p><div class="button-row"><button type="button" class="button quiet" data-action="confirm" data-confirm="no" autofocus>${escapeHtml(t('common.cancel'))}</button><button type="button" class="button primary" data-action="confirm" data-confirm="yes">${escapeHtml(t('common.confirm'))}</button></div></section></div>`;
+    }
+
+    function syncDocumentLanguage() {
+      const documentElement = document && document.documentElement;
+      if (!documentElement) {
+        return;
+      }
+      if (typeof documentElement.setAttribute === 'function') {
+        documentElement.setAttribute('lang', state.language);
+      } else {
+        documentElement.lang = state.language;
+      }
+    }
+
+    function focusModalTarget(mount) {
+      if ((!state.editor && !state.confirm) || !mount || typeof mount.querySelector !== 'function') {
+        return;
+      }
+      const target = mount.querySelector('.modal [autofocus], .modal button, .modal input, .modal textarea, .modal select');
+      if (target && typeof target.focus === 'function') {
+        target.focus();
+      }
     }
 
     function render() {
-      if (!document || typeof document.getElementById !== 'function') {
+      if (!document) {
+        return;
+      }
+      syncDocumentLanguage();
+      if (typeof document.getElementById !== 'function') {
         return;
       }
       const mount = document.getElementById('app');
@@ -559,6 +604,7 @@
       }
       const screen = state.screen === 'start' ? renderStart() : state.screen === 'ledger' ? renderLedger() : renderResult();
       mount.innerHTML = `${renderHeader()}<div id="main-content">${screen}</div>${renderConfirm()}`;
+      focusModalTarget(mount);
     }
 
     return {
@@ -579,6 +625,7 @@
       copySummary,
       finish,
       handleClick,
+      handleKeydown,
       handleSubmit,
       render,
     };
@@ -593,6 +640,7 @@
         root.document.addEventListener('DOMContentLoaded', () => {
           root.mealSplitApp = createApp();
           root.document.addEventListener('click', root.mealSplitApp.handleClick);
+          root.document.addEventListener('keydown', root.mealSplitApp.handleKeydown);
           root.document.addEventListener('submit', root.mealSplitApp.handleSubmit);
           root.mealSplitApp.render();
         });

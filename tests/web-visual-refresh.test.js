@@ -272,6 +272,84 @@ test('persists the participant count when rendering the start screen again', () 
   assert.match(mount.innerHTML, /<input type="hidden" name="count" value="3">/);
 });
 
+test('keeps document language and modal keyboard affordances in sync', () => {
+  const context = loadApp();
+  const focusState = { count: 0 };
+  const focusTarget = {
+    focus() {
+      focusState.count += 1;
+    },
+  };
+  const mount = {
+    innerHTML: '',
+    querySelector(selector) {
+      assert.equal(selector, '.modal [autofocus], .modal button, .modal input, .modal textarea, .modal select');
+      return focusTarget;
+    },
+  };
+  const document = {
+    documentElement: {
+      lang: 'en',
+      setAttribute(name, value) {
+        assert.equal(name, 'lang');
+        this.lang = value;
+      },
+    },
+    getElementById(id) {
+      return id === 'app' ? mount : null;
+    },
+  };
+  const app = context.MealSplitApp.createApp({
+    storage: createDraftStore(),
+    languageStorage: createLanguageStorage('en'),
+    browserLanguage: 'en-US',
+    document,
+  });
+
+  app.render();
+  app.setLanguage('zh');
+  assert.equal(document.documentElement.lang, 'zh');
+
+  app.createBill('names', ['Alex', 'Jamie']);
+  app.handleClick({
+    target: {
+      dataset: { action: 'open-expense' },
+      closest(selector) {
+        return selector === '[data-action]' ? this : null;
+      },
+    },
+  });
+  assert.ok(focusState.count > 0, 'opening the expense dialog should move focus into the modal');
+
+  let prevented = false;
+  app.handleKeydown({
+    key: 'Escape',
+    preventDefault() {
+      prevented = true;
+    },
+  });
+  assert.equal(prevented, true);
+  assert.equal(app.getState().editor, null);
+
+  app.addExpense({ amount: '86', payerId: 'p1', splitMode: 'all' });
+  app.navigate('result');
+  app.handleClick({
+    target: {
+      dataset: { action: 'finish-request' },
+      closest(selector) {
+        return selector === '[data-action]' ? this : null;
+      },
+    },
+  });
+  assert.match(mount.innerHTML, /aria-labelledby="confirm-title"/);
+  assert.match(mount.innerHTML, /<h2 id="confirm-title">/);
+  app.handleKeydown({
+    key: 'Escape',
+    preventDefault() {},
+  });
+  assert.equal(app.getState().confirm, null);
+});
+
 test('renders the expense editor with radio-backed choice chips', () => {
   const { app, mount } = createRenderFixture('en', 'Dinner');
 
