@@ -21,4 +21,10 @@ function formatCents(cents) {
   return `${sign}${yuan}.${decimal}`;
 }
 
-module.exports = { parseYuanToCents, formatCents };
+const moneyApi = { parseYuanToCents, formatCents };
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = moneyApi;
+} else if (typeof globalThis !== 'undefined') {
+  globalThis.MealSplitMoney = moneyApi;
+}

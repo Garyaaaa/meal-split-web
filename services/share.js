@@ -1,6 +1,15 @@
-const { formatCents } = require('../utils/money');
+function getFormatCents() {
+  if (typeof module !== 'undefined' && module.exports) {
+    return require('../utils/money').formatCents;
+  }
+  if (typeof globalThis !== 'undefined' && globalThis.MealSplitMoney) {
+    return globalThis.MealSplitMoney.formatCents;
+  }
+  throw new Error('金额格式化服务不可用');
+}
 
 function buildShareText(result) {
+  const formatCents = getFormatCents();
   const header = `【吃饭分账】总消费 ¥${formatCents(result.totalCents)}`;
   if (!result.collectorId) {
     return `${header}\n大家已经结清，无需转账`;
@@ -15,4 +24,10 @@ function buildShareText(result) {
   return `${header}\n${collectorLine}\n\n${transferLines.join('\n')}`;
 }
 
-module.exports = { buildShareText };
+const shareApi = { buildShareText };
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = shareApi;
+} else if (typeof globalThis !== 'undefined') {
+  globalThis.MealSplitShare = shareApi;
+}

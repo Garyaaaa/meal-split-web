@@ -168,4 +168,10 @@ function calculateSettlement(bill, requestedCollectorId) {
   };
 }
 
-module.exports = { assertBill, calculateSettlement };
+const settlementApi = { assertBill, calculateSettlement };
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = settlementApi;
+} else if (typeof globalThis !== 'undefined') {
+  globalThis.MealSplitSettlement = settlementApi;
+}

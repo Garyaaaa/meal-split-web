@@ -100,9 +100,15 @@ function reconcileParticipants(bill, names) {
   return { ...bill, participants, expenses, collectorId };
 }
 
-module.exports = {
+const participantsApi = {
   createBill,
   createLetterParticipants,
   createNamedParticipants,
   reconcileParticipants,
 };
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = participantsApi;
+} else if (typeof globalThis !== 'undefined') {
+  globalThis.MealSplitParticipants = participantsApi;
+}
