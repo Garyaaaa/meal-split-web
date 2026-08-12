@@ -52,6 +52,10 @@ function createRenderDocument() {
 }
 
 function createRenderFixture(language, note) {
+  return createNamedRenderFixture(language, ['Alex', 'Jamie'], note);
+}
+
+function createNamedRenderFixture(language, names, note) {
   const context = loadApp();
   const document = createRenderDocument();
   const app = context.MealSplitApp.createApp({
@@ -61,7 +65,7 @@ function createRenderFixture(language, note) {
     document,
   });
 
-  app.createBill('names', ['Alex', 'Jamie']);
+  app.createBill('names', names);
   assert.equal(app.addExpense({
     amount: '86',
     note,
@@ -70,6 +74,19 @@ function createRenderFixture(language, note) {
   }), true);
   app.render();
 
+  return { app, mount: document.mount };
+}
+
+function createStartFixture(language = 'en') {
+  const context = loadApp();
+  const document = createRenderDocument();
+  const app = context.MealSplitApp.createApp({
+    storage: createDraftStore(),
+    languageStorage: createLanguageStorage(language),
+    browserLanguage: 'en-US',
+    document,
+  });
+  app.render();
   return { app, mount: document.mount };
 }
 
@@ -190,6 +207,85 @@ test('locks ordered expense hooks, ledger actions, and amount formatting', () =>
   assert.ok(hasClass(addExpenseButton.attributes, 'primary'));
 });
 
+test('keeps the participant count stepper inside the create-bill form', () => {
+  const { app, mount } = createStartFixture();
+  assert.match(mount.innerHTML, /data-action="change-count"/);
+  assert.match(mount.innerHTML, /data-count-value/);
+  assert.match(mount.innerHTML, /name="count"/);
+  assert.match(mount.innerHTML, /segmented-control/);
+
+  const output = { textContent: '2' };
+  const form = {
+    elements: { count: { value: '2' } },
+    querySelector(selector) {
+      assert.equal(selector, 'output[data-count-value]');
+      return output;
+    },
+  };
+  const button = {
+    dataset: { action: 'change-count', direction: 'increase' },
+    closest(selector) {
+      if (selector === '[data-action]') return this;
+      if (selector === 'form[data-action="create-bill"]') return form;
+      return null;
+    },
+  };
+  const initialMarkup = mount.innerHTML;
+
+  app.handleClick({ target: button });
+
+  assert.equal(form.elements.count.value, '3');
+  assert.equal(output.textContent, '3');
+  assert.equal(mount.innerHTML, initialMarkup, 'changing count should not rerender the form');
+});
+
+test('persists the participant count when rendering the start screen again', () => {
+  const { app, mount } = createStartFixture();
+  const output = { textContent: '2' };
+  const form = {
+    elements: { count: { value: '2' } },
+    querySelector(selector) {
+      assert.equal(selector, 'output[data-count-value]');
+      return output;
+    },
+  };
+  const button = {
+    dataset: { action: 'change-count', direction: 'increase' },
+    closest(selector) {
+      if (selector === '[data-action]') return this;
+      if (selector === 'form[data-action="create-bill"]') return form;
+      return null;
+    },
+  };
+
+  app.handleClick({ target: button });
+  app.setLanguage('zh');
+
+  assert.match(mount.innerHTML, /<output[^>]*data-count-value[^>]*>3<\/output>/);
+  assert.match(mount.innerHTML, /<input type="hidden" name="count" value="3">/);
+});
+
+test('renders the expense editor with radio-backed choice chips', () => {
+  const { app, mount } = createRenderFixture('en', 'Dinner');
+
+  app.handleClick({
+    target: {
+      dataset: { action: 'open-expense' },
+      closest(selector) {
+        return selector === '[data-action]' ? this : null;
+      },
+    },
+  });
+
+  assert.match(mount.innerHTML, /data-action="save-expense"/);
+  assert.match(mount.innerHTML, /type="radio"[^>]*name="payerId"/);
+  assert.match(mount.innerHTML, /type="radio"[^>]*name="splitMode"/);
+  assert.match(mount.innerHTML, /type="checkbox"[^>]*name="participantIds"/);
+  assert.ok(findElementsWithClass(mount.innerHTML, 'choice-chip').length >= 4);
+  assert.equal(findOpeningTags(mount.innerHTML, 'select').length, 0);
+  assert.match(mount.innerHTML, /segmented-control/);
+});
+
 test('locks the result collector and transfer hierarchy', () => {
   const { app, mount } = createRenderFixture('en', 'Dinner');
 
@@ -209,6 +305,17 @@ test('locks the result collector and transfer hierarchy', () => {
   assert.match(transferRows[0].content, /Jamie/);
   assert.match(transferRows[0].content, /Alex/);
   assert.match(transferRows[0].content, /\$43\.00/);
+});
+
+test('keeps grapheme clusters intact in collector avatars', () => {
+  const { app, mount } = createNamedRenderFixture('en', ['👩‍💻', 'Alex'], 'Dinner');
+
+  app.navigate('result');
+
+  const collectorHero = findElementsWithClass(mount.innerHTML, 'collector-hero')[0];
+  const avatars = findElementsWithClass(collectorHero.content, 'collector-avatar');
+  assert.equal(avatars.length, 1);
+  assert.equal(avatars[0].content, '👩‍💻');
 });
 
 test('locks the refreshed stylesheet tokens and entry theme color', () => {
