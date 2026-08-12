@@ -459,3 +459,11 @@ test('locks responsive wrapping rules for members, choices, and amounts', () => 
   const expenseAmountRule = extractCssRule(styles, '.expense-amount');
   assert.match(expenseAmountRule, /(?:^|;)\s*white-space\s*:\s*normal\s*(?:;|$)/i);
 });
+
+test('gives the total card spacing while preserving its dark background', () => {
+  const styles = fs.readFileSync(path.join(root, 'web/styles.css'), 'utf8');
+  const totalCardRule = extractCssRule(styles, '.total-card');
+
+  assert.match(totalCardRule, /(?:^|;)\s*padding\s*:/i);
+  assert.match(totalCardRule, /(?:^|;)\s*background\s*:\s*var\(--deep\)\s*(?:;|$)/i);
+});
