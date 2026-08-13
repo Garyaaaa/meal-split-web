@@ -6,9 +6,9 @@
 
 ## Try it online / 在线试用
 
-The GitHub Pages link will be added here after the public repository is created.
+[Open the live app](https://garyaaaa.github.io/meal-split-web/)
 
-仓库创建并启用 GitHub Pages 后，会在这里补充在线试用链接。
+[在线打开](https://garyaaaa.github.io/meal-split-web/)
 
 ## Features / 功能
 
